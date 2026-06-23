@@ -52,7 +52,7 @@ A custom C++ callable wrapper library built for learning type erasure, small buf
 
 ## Overview
 
-FunctionPro is a `std::function`-like callable wrapper library implemented from scratch in modern C++ (C++17).  
+FunctionPro is a `std::function`-like callable wrapper library implemented from scratch in modern C++ (C++23).  
 It focuses on understanding how type erasure works internally, including SBO, vtable dispatch, and ownership semantics.
 
 It includes three wrapper classes:
