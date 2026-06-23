@@ -498,18 +498,18 @@ All times measured in nanoseconds (ns).
 ```
 FunctionPro/
 ├── include/
-│   └── function/
-│       ├── Function.h
-│       ├── Function.tpp
-│       ├── MoveOnlyFunction.h
-│       ├── MoveOnlyFunction.tpp
-│       ├── FunctionRef.h
-│       ├── FunctionRef.tpp
-│       └── detail/
-│           ├── Storage.h
-│           ├── SBOTraits.h
-│           ├── VTable.h
-│           └── VTableFactory.h
+│   ├── function/
+│   │   ├── Function.h
+│   │   ├── Function.tpp
+│   │   ├── MoveOnlyFunction.h
+│   │   ├── MoveOnlyFunction.tpp
+│   │   ├── FunctionRef.h
+│   │   └── FunctionRef.tpp
+│   └── detail/
+│       ├── Storage.h
+│       ├── SBOTraits.h
+│       ├── VTable.h
+│       └── VTableFactory.h
 │
 ├── tests/
 │   ├── test_helper.h
