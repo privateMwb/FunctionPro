@@ -1,0 +1,19 @@
+# Build outputs
+build/
+
+# Windows
+*.exe
+
+# Object files
+*.o
+*.obj
+
+# Debug symbols
+*.pdb
+
+# VS Code
+.vscode/
+
+# CLion
+.idea/
+cmake-build-*/
