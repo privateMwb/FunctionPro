@@ -1,6 +1,6 @@
 # FunctionPro
 
-[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue)](https://en.cppreference.com/w/cpp/17)
+[![C++23](https://img.shields.io/badge/C%2B%2B-17-blue)](https://en.cppreference.com/w/cpp/17)
 [![Status](https://img.shields.io/badge/status-learning%20project-green)](https://github.com/privateMwb/FunctionPro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -396,22 +396,25 @@ FunctionPro/
 │           ├── VTable.h
 │           └── VTableFactory.h
 │
-├── benchmarks/
-│   ├── benchmark_helper.h
-│   ├── benchmark_function.cpp
-│   ├── benchmark_move_only_function.cpp
-│   └── benchmark_function_ref.cpp
-│
 ├── tests/
 │   ├── test_helper.h
 │   ├── test_function.cpp
 │   ├── test_move_only_function.cpp
-│   └── test_function_ref.cpp
+│   ├── test_function_ref.cpp
+│   └── test_all.cpp
+│
+├── benchmarks/
+│   ├── benchmark_helper.h
+│   ├── benchmark_function.cpp
+│   ├── benchmark_move_only_function.cpp
+│   ├── benchmark_function_ref.cpp
+│   └── benchmark_all.cpp
 │
 ├── examples/
 │   ├── example_function.cpp
 │   ├── example_move_only_function.cpp
-│   └── example_function_ref.cpp
+│   ├── example_function_ref.cpp
+│   └── example_all.cpp
 │
 ├── README.md
 └── LICENSE
@@ -423,33 +426,21 @@ FunctionPro/
 
 ### Requirements
 
-- C++17-compatible compiler: GCC 11+, Clang 13+, or MSVC 19.30+
+- C++23-compatible compiler: GCC 13+, Clang 17+, or MSVC 19.38+
 - No external dependencies — header-only core library
 
 ### Compile & Run Tests
 
 ```bash
-g++ -std=c++17 tests/test_function.cpp -Iinclude -o build/test_function
-./build/test_function
-
-g++ -std=c++17 tests/test_move_only_function.cpp -Iinclude -o build/test_move_only_function
-./build/test_move_only_function
-
-g++ -std=c++17 tests/test_function_ref.cpp -Iinclude -o build/test_function_ref
-./build/test_function_ref
+g++ -std=c++23 tests/*.cpp -Iinclude -o testsResult
+./testsResult
 ```
 
 ### Compile & Run Benchmarks
 
 ```bash
-g++ -std=c++17 -O2 benchmarks/benchmark_function.cpp -Iinclude -o build/benchmark_function
-./build/benchmark_function
-
-g++ -std=c++17 -O2 benchmarks/benchmark_move_only_function.cpp -Iinclude -o build/benchmark_move_only_function
-./build/benchmark_move_only_function
-
-g++ -std=c++17 -O2 benchmarks/benchmark_function_ref.cpp -Iinclude -o build/benchmark_function_ref
-./build/benchmark_function_ref
+g++ -std=c++23 -O2 benchmarks/*.cpp -Iinclude -o benchmarksResult
+./benchmarkResult
 ```
 
 > Use `-O2` or `-O3` for meaningful benchmark results. Debug builds distort timing significantly.
@@ -457,14 +448,8 @@ g++ -std=c++17 -O2 benchmarks/benchmark_function_ref.cpp -Iinclude -o build/benc
 ### Compile & Run Examples
 
 ```bash
-g++ -std=c++17 examples/example_function.cpp -Iinclude -o build/example_function
-./build/example_function
-
-g++ -std=c++17 examples/example_move_only_function.cpp -Iinclude -o build/example_move_only_function
-./build/example_move_only_function
-
-g++ -std=c++17 examples/example_function_ref.cpp -Iinclude -o build/example_function_ref
-./build/example_function_ref
+g++ -std=c++23 examples/*.cpp -Iinclude -o examplesResult
+./examplesResult
 ```
 
 ---
