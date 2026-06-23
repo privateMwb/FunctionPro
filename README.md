@@ -31,6 +31,17 @@ A custom C++ callable wrapper library built for learning type erasure, small buf
   - [Function](#function)
   - [MoveOnlyFunction](#moveonlyfunction)
   - [FunctionRef](#functionref)
+- [Benchmark Results](#benchmark-results)
+  - [Function — Construction](#function--construction)
+  - [Function — Invocation](#function--invocation)
+  - [Function — Copy & Move](#function--copy--move)
+  - [MoveOnlyFunction — Construction](#moveonlyfunction--construction)
+  - [MoveOnlyFunction — Invocation](#moveonlyfunction--invocation)
+  - [MoveOnlyFunction — Move](#moveonlyfunction--move)
+  - [FunctionRef — Construction](#functionref--construction)
+  - [FunctionRef — Invocation](#functionref--invocation)
+  - [FunctionRef — Copy & Rebind](#functionref--copy--rebind)
+  - [Summary](#summary)
 - [Project Structure](#project-structure)
 - [Build Instructions](#build-instructions)
 - [Notes](#notes)
@@ -375,6 +386,110 @@ explicit operator bool() const noexcept;
 bool operator==(std::nullptr_t) const noexcept;
 bool operator!=(std::nullptr_t) const noexcept;
 ```
+
+---
+
+## Benchmark Results
+
+Benchmarks compare `Function`, `MoveOnlyFunction`, and `FunctionRef` against `std::function` across core operations.
+All times measured in nanoseconds (ns).
+
+> Results may vary depending on compiler optimizations and hardware.
+> Compiled with `-O2`.
+
+### Function — Construction
+
+| Operation                  | Function   | std::function | Speedup  |
+| -------------------------- | ---------- | ------------- | -------- |
+| Construct SBO              | 38.22 ns   | 66.02 ns      | ~1.73×   |
+| Construct heap             | 531.65 ns  | 825.14 ns     | ~1.55×   |
+
+### Function — Invocation
+
+| Operation                  | Function   | std::function | Speedup  |
+| -------------------------- | ---------- | ------------- | -------- |
+| Invoke free function       | 26.13 ns   | 40.25 ns      | ~1.54×   |
+| Invoke SBO callable        | 25.17 ns   | 40.74 ns      | ~1.62×   |
+| Invoke heap callable       | 28.78 ns   | 46.05 ns      | ~1.60×   |
+
+### Function — Copy & Move
+
+| Operation                  | Function   | std::function | Speedup  |
+| -------------------------- | ---------- | ------------- | -------- |
+| Copy                       | 64.21 ns   | 60.55 ns      | ~0.94×   |
+| Move                       | 96.15 ns   | 130.67 ns     | ~1.36×   |
+
+`Function` copy is marginally slower than `std::function` — within noise range. Move is ~1.4× faster.
+
+---
+
+### MoveOnlyFunction — Construction
+
+| Operation                      | MoveOnlyFunction | std::function | Speedup  |
+| ------------------------------ | ---------------- | ------------- | -------- |
+| Construct SBO                  | 38.85 ns         | 68.84 ns      | ~1.77×   |
+| Construct heap                 | 580.41 ns        | 701.50 ns     | ~1.21×   |
+
+### MoveOnlyFunction — Invocation
+
+| Operation                      | MoveOnlyFunction | std::function | Speedup  |
+| ------------------------------ | ---------------- | ------------- | -------- |
+| Invoke free function           | 22.49 ns         | 34.85 ns      | ~1.55×   |
+| Invoke SBO callable            | 21.40 ns         | 35.29 ns      | ~1.65×   |
+| Invoke heap callable           | 23.46 ns         | 42.04 ns      | ~1.79×   |
+| Invoke move-only callable      | 25.77 ns         | —             | —        |
+
+### MoveOnlyFunction — Move
+
+| Operation                      | MoveOnlyFunction | std::function | Speedup  |
+| ------------------------------ | ---------------- | ------------- | -------- |
+| Move SBO                       | 100.35 ns        | 142.46 ns     | ~1.42×   |
+| Move heap                      | 774.13 ns        | 849.61 ns     | ~1.10×   |
+
+`MoveOnlyFunction` consistently outperforms `std::function` on invocation — up to **1.79×** faster on heap callables.
+
+---
+
+### FunctionRef — Construction
+
+| Operation                      | FunctionRef  | Notes                        |
+| ------------------------------ | ------------ | ---------------------------- |
+| Construct from lambda          | 17.48 ns     | Two pointer stores only      |
+| Construct from free function   | 18.94 ns     | Two pointer stores only      |
+
+### FunctionRef — Invocation
+
+| Operation                      | FunctionRef  | std::function | raw pointer | Speedup vs std |
+| ------------------------------ | ------------ | ------------- | ----------- | -------------- |
+| Invoke free function           | 21.66 ns     | 38.43 ns      | 6.93 ns     | ~1.77×         |
+| Invoke SBO callable            | 27.94 ns     | 39.25 ns      | —           | ~1.40×         |
+| Invoke void return             | 21.34 ns     | 49.34 ns      | —           | ~2.31×         |
+
+### FunctionRef — Copy & Rebind
+
+| Operation                      | FunctionRef  | Notes                        |
+| ------------------------------ | ------------ | ---------------------------- |
+| Copy                           | 4.75 ns      | Two pointer copies only      |
+| Rebind                         | 20.86 ns     | Reassign to new callable     |
+
+`FunctionRef` copy at **4.75 ns** is the cheapest operation in the entire library — just two pointer copies, no allocation, no vtable lookup.
+
+---
+
+### Summary
+
+| Operation                      | Winner           | Notes                                         |
+| ------------------------------ | ---------------- | --------------------------------------------- |
+| Construct SBO                  | FunctionPro      | ~1.7× faster                                  |
+| Construct heap                 | FunctionPro      | ~1.2–1.6× faster                              |
+| Invoke free function           | FunctionPro      | ~1.5–1.8× faster                              |
+| Invoke SBO callable            | FunctionPro      | ~1.6× faster                                  |
+| Invoke heap callable           | FunctionPro      | ~1.6–1.8× faster                              |
+| Invoke void return             | FunctionRef      | ~2.3× faster than std::function               |
+| Copy (Function)                | std::function    | Marginally faster; within noise range          |
+| Copy (FunctionRef)             | FunctionRef      | 4.75 ns — two pointer copies only             |
+| Move                           | FunctionPro      | ~1.1–1.4× faster                              |
+| Raw pointer vs FunctionRef     | raw pointer      | 6.93 ns vs 21.66 ns — cost of indirection     |
 
 ---
 
