@@ -1,6 +1,6 @@
 # FunctionPro
 
-[![C++23](https://img.shields.io/badge/C%2B%2B-17-blue)](https://en.cppreference.com/w/cpp/17)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)](https://en.cppreference.com/w/cpp/17)
 [![Status](https://img.shields.io/badge/status-learning%20project-green)](https://github.com/privateMwb/FunctionPro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
