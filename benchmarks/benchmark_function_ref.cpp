@@ -84,4 +84,5 @@ void run_function_ref_benchmarks() {
     std::cout << "\n";
 
     rebind();
+    std::cout << "\n";
 }

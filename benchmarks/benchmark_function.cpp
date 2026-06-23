@@ -102,4 +102,5 @@ void run_function_benchmarks() {
     std::cout << "\n";
 
     move();
+    std::cout << "\n";
 }

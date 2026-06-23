@@ -136,4 +136,5 @@ void run_move_only_function_benchmarks() {
     std::cout << "\n";
 
     move_heap();
+    std::cout << "\n";
 }
