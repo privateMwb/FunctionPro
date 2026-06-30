@@ -1,9 +1,9 @@
 #pragma once
 
-#include "detail/Storage.h"
-#include "detail/SBOTraits.h"
-#include "detail/VTable.h"
-#include "detail/VTableFactory.h"
+#include <FunctionPro/Detail/CallableStorage.h>
+#include <FunctionPro/Detail/SBOTraits.h>
+#include <FunctionPro/Detail/VTable.h>
+#include <FunctionPro/Detail/VTableFactory.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -22,7 +22,7 @@ namespace FunctionPro {
     private:
         // Core State
         const VTable<R, Args...>* vtable_ = nullptr;
-        Storage                   storage_;
+        CallableStorage                    storage_;
 
     public:
         // Constructors & Destructor
