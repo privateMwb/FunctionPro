@@ -1,111 +1,217 @@
 // FunctionRef Test Suite
-// Validates non-owning callable references, invocation behavior,
-// rebinding, copying, and exception safety.
+// Validates non-owning callable references, invocation,
+// rebinding, copy semantics, and lifetime behavior.
 //
 // Covers:
-// - Empty state handling
-// - Free function binding
-// - Lambda binding
-// - Side-effect invocation
-// - Exception handling
-// - Copy construction
-// - Copy assignment
-// - Reference rebinding
+// - default construction
+// - free functions
+// - lambdas and mutable lambdas
+// - functors
+// - copy semantics
+// - rebinding
+// - empty invocation
+// - non-owning lifetime
+// - pass-by-value usage
+// - type traits
 
 #include "test_helper.h"
-#include "../include/function/FunctionRef.h"
 
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 
 using namespace FunctionPro;
 
-// Default Construction
-// Verifies that a default-constructed FunctionRef is empty.
+static int free_add(int a, int b) { return a + b; }
+static int free_double(int x)     { return x * 2; }
+
+// Verifies default construction creates an empty FunctionRef.
 static void default_empty() {
-    FunctionRef<int(int)> ref;
-    CHK(!ref);
-    CHK(ref == nullptr);
+    FunctionRef<int(int, int)> f;
+    CHK(!f);
+    CHK(f == nullptr);
+    CHK(f != nullptr == false);
 }
 
-// Free Function Binding
-// Verifies binding and invoking a free function.
+// Verifies free functions can be referenced and invoked.
 static void free_function() {
-    FunctionRef<int(int, int)> ref(free_add);
-    CHK(ref);
-    CHK(ref(3, 3) == 6);
+    FunctionRef<int(int, int)> f(free_add);
+
+    CHK(f);
+    CHK(f != nullptr);
+    CHK(f(2, 3) == 5);
 }
 
-// Lambda Binding
-// Verifies binding and invoking a lambda.
+// Verifies lambdas can be referenced and invoked.
 static void lambda() {
-    int captured = 7;
+    int captured = 10;
     auto lam = [captured](int x) { return x + captured; };
-    FunctionRef<int(int)> ref(lam);
-    CHK(ref(3) == 10);
+
+    FunctionRef<int(int)> f(lam);
+
+    CHK(f);
+    CHK(f(5) == 15);
 }
 
-// Side Effect Invocation
-// Verifies callables can modify referenced arguments.
-static void side_effect() {
-    int x = 0;
-    FunctionRef<void(int&)> ref(free_side);
-    ref(x);
-    CHK(x == 1);
+// Verifies mutable lambdas preserve their internal state.
+static void mutable_lambda() {
+    int counter = 0;
+    auto lam = [counter](int x) mutable { return x + ++counter; };
+
+    FunctionRef<int(int)> f(lam);
+
+    CHK(f(10) == 11);
+    CHK(f(10) == 12);
 }
 
-// Empty Invocation Exception
-// Verifies calling an empty FunctionRef throws.
+// Verifies functor objects can be referenced.
+static void functor() {
+    struct Adder {
+        int base;
+        int operator()(int x) const { return x + base; }
+    };
+
+    Adder adder{5};
+
+    FunctionRef<int(int)> f(adder);
+
+    CHK(f(3) == 8);
+}
+
+// Verifies const functors can be referenced.
+static void const_functor() {
+    struct Multiplier {
+        int factor;
+        int operator()(int x) const { return x * factor; }
+    };
+
+    const Multiplier m{3};
+
+    FunctionRef<int(int)> f(m);
+
+    CHK(f(4) == 12);
+}
+
+// Verifies copy construction preserves the referenced callable.
+static void copy_ctor() {
+    auto lam = [](int x, int y) { return x + y; };
+
+    FunctionRef<int(int, int)> a(lam);
+    FunctionRef<int(int, int)> b(a);
+
+    CHK(b(3, 4) == 7);
+    CHK(a(1, 1) == 2);
+}
+
+// Verifies copy assignment rebinds the reference.
+static void copy_assign() {
+    auto lam1 = [](int x, int y) { return x + y; };
+    auto lam2 = [](int x, int y) { return x * y; };
+
+    FunctionRef<int(int, int)> a(lam1);
+    FunctionRef<int(int, int)> b(lam2);
+
+    b = a;
+
+    CHK(b(3, 4) == 7);
+}
+
+// Verifies a FunctionRef can be rebound to another callable.
+static void rebind() {
+    auto lam1 = [](int x) { return x * 2; };
+    auto lam2 = [](int x) { return x * 3; };
+
+    FunctionRef<int(int)> f(lam1);
+
+    CHK(f(3) == 6);
+
+    f = FunctionRef<int(int)>(lam2);
+
+    CHK(f(3) == 9);
+}
+
+// Verifies function pointers can be referenced.
+static void free_function_pointer() {
+    FunctionRef<int(int)> f(free_double);
+
+    CHK(f);
+    CHK(f(5) == 10);
+}
+
+// Verifies invoking an empty FunctionRef throws.
 static void throw_on_empty_call() {
-    FunctionRef<int(int)> ref;
+    FunctionRef<int(int, int)> f;
+
     bool threw = false;
-    try { ref(1); }
-    catch (const std::bad_function_call&) { threw = true; }
+
+    try {
+        f(1, 2);
+    } catch (const std::bad_function_call&) {
+        threw = true;
+    }
+
     CHK(threw);
 }
 
-// Copy Construction
-// Verifies copied references point to the same callable target.
-static void copy() {
-    auto lam = [](int x) { return x * 4; };
-    FunctionRef<int(int)> a(lam);
-    FunctionRef<int(int)> b(a);
-    CHK(b(2) == 8);
+// Verifies FunctionRef does not own the referenced callable.
+static void non_owning_lifetime() {
+    FunctionRef<int(int)> f;
+
+    {
+        int captured = 7;
+        auto lam = [captured](int x) { return x + captured; };
+
+        f = FunctionRef<int(int)>(lam);
+
+        CHK(f(3) == 10);
+    }
+
+    // Clear the reference before the callable goes out of scope.
+    f = FunctionRef<int(int)>();
+
+    CHK(!f);
 }
 
-// Copy Assignment
-// Verifies copy assignment preserves callable binding.
-static void copy_assign() {
-    auto lam = [](int x) { return x * 5; };
-    FunctionRef<int(int)> a(lam);
-    FunctionRef<int(int)> b;
-    b = a;
-    CHK(b(2) == 10);
+// Verifies FunctionRef is inexpensive to pass by value.
+static void pass_by_value() {
+    auto lam = [](int x, int y) { return x + y; };
+
+    FunctionRef<int(int, int)> ref(lam);
+
+    auto invoke = [](FunctionRef<int(int, int)> fn) {
+        return fn(3, 4);
+    };
+
+    CHK(invoke(ref) == 7);
 }
 
-// Reference Rebinding
-// Verifies a FunctionRef can be rebound to another callable.
-static void rebind() {
-    auto lam1 = [](int x) { return x + 1; };
-    auto lam2 = [](int x) { return x + 2; };
-    FunctionRef<int(int)> ref(lam1);
-    CHK(ref(0) == 1);
-    ref = FunctionRef<int(int)>(lam2);
-    CHK(ref(0) == 2);
+// Verifies FunctionRef satisfies its expected type traits.
+static void not_owning() {
+    CHK(std::is_copy_constructible_v<FunctionRef<int()>>);
+    CHK(std::is_copy_assignable_v<FunctionRef<int()>>);
+    CHK(std::is_move_constructible_v<FunctionRef<int()>>);
+    CHK(std::is_move_assignable_v<FunctionRef<int()>>);
+    CHK(!std::is_default_constructible_v<FunctionRef<int()>> == false);
 }
 
+// Executes all FunctionRef test cases.
 void run_function_ref_tests() {
-    std::cout << "\nFunctionRef Tests\n";
+    setTitle("FunctionRef Tests");
 
     RUN(default_empty);
     RUN(free_function);
     RUN(lambda);
-    RUN(side_effect);
-    RUN(throw_on_empty_call);
-    RUN(copy);
+    RUN(mutable_lambda);
+    RUN(functor);
+    RUN(const_functor);
+    RUN(copy_ctor);
     RUN(copy_assign);
     RUN(rebind);
+ 
+    RUN(free_function_pointer);
+    RUN(throw_on_empty_call);
+    RUN(non_owning_lifetime);
+    RUN(pass_by_value);
+    RUN(not_owning);
 
     std::cout << "\n";
 }

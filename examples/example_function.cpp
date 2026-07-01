@@ -1,135 +1,97 @@
-// Function Examples
-// Demonstrates construction, invocation, ownership,
-// reassignment, and utility operations of Function.
+// Function Example
+// Demonstrates common Function operations, including construction,
+// invocation, ownership transfer, state management, and swapping.
 //
 // Covers:
-// - Free function wrapping
-// - Lambda wrapping
-// - Capturing lambdas
-// - Callable objects
-// - Callable reassignment
-// - Copy semantics
-// - Move semantics
-// - Reset operations
-// - Empty state checks
-// - String return types
+// - default and nullptr construction
+// - free function wrapping
+// - SBO lambda wrapping
+// - heap lambda wrapping
+// - copy semantics
+// - move semantics
+// - reset and reassignment
+// - swap
 
-#include "../include/function/Function.h"
-
-#include <iostream>
-#include <string>
-#include <iomanip>
+#include "example_helper.h"
+#include <FunctionPro/Function.h>
 
 using namespace FunctionPro;
 
-static int add(int a, int b) { return a + b; }
+// Free function used throughout the examples.
+static int free_add(int a, int b) { return a + b; }
 
-template<typename T>
-static void print(const std::string& title, const T& value) {
-    std::cout << std::left
-              << std::setw(40) << title
-              << std::setw(20) << value
-              << "\n";
-}
+int main() {
+    mainTitle("\nFunction Examples");
+    borderLine();
 
-// Free Function Example
-// Demonstrates wrapping and invoking a free function.
-static void free_function() {
-    Function<int(int, int)> f(add);
-    print("free function:", f(2, 3));
-}
+    // Demonstrates default and nullptr construction.
+    setTitle("Construction");
+    Function<int(int, int)> empty;
+    std::cout << "Default constructed : " << (empty ? "non-empty" : "empty") << "\n";
+    Function<int(int, int)> from_null(nullptr);
+    std::cout << "From nullptr        : " << (from_null ? "non-empty" : "empty") << "\n\n";
 
-// Lambda Example
-// Demonstrates wrapping and invoking a lambda.
-static void lambda() {
-    Function<int(int)> f([](int x) { return x * 2; });
-    print("lambda:", f(5));
-}
+    // Demonstrates wrapping a free function.
+    setTitle("Free Function");
+    Function<int(int, int)> f(free_add);
+    std::cout << "Wraps free function : " << (f ? "yes" : "no") << "\n";
+    std::cout << "f(3, 4)             : " << f(3, 4) << "\n\n";
 
-// Capturing Lambda Example
-// Demonstrates lambda capture support.
-static void capturing_lambda() {
-    int multiplier = 4;
-    Function<int(int)> f([multiplier](int x) { return x * multiplier; });
-    print("capturing lambda:", f(3));
-}
+    // Demonstrates storing a small lambda inline.
+    setTitle("Lambda SBO");
+    int bias = 10;
+    Function<int(int)> sbo([bias](int x) { return x + bias; });
+    std::cout << "Stored inline       : " << (sbo ? "yes" : "no") << "\n";
+    std::cout << "sbo(5)              : " << sbo(5) << "\n\n";
 
-// Callable Object Example
-// Demonstrates wrapping a functor object.
-static void callable_object() {
-    struct Adder {
-        int offset;
-        int operator()(int x) const { return x + offset; }
-    };
-    Function<int(int)> f(Adder{10});
-    print("callable object:", f(5));
-}
+    // Demonstrates storing a large lambda on the heap.
+    setTitle("Lambda Heap");
+    struct BigCapture {
+        std::byte pad[64] = {};
+        int value = 42;
+    } big;
+    Function<int()> heap([big]() { return big.value; });
+    std::cout << "Stored on heap      : " << (heap ? "yes" : "no") << "\n";
+    std::cout << "heap()              : " << heap() << "\n\n";
 
-// Callable Reassignment Example
-// Demonstrates replacing one callable with another.
-static void reassign() {
-    Function<int(int, int)> f(add);
-    f = [](int a, int b) {return a * b; };
-    print("reassigned:", f(3, 4));
-}
+    // Demonstrates copy construction.
+    setTitle("Copy");
+    Function<int(int, int)> original(free_add);
+    Function<int(int, int)> copied(original);
+    std::cout << "Original after copy : " << (original ? "non-empty" : "empty") << "\n";
+    std::cout << "Copied              : " << (copied ? "non-empty" : "empty") << "\n";
+    std::cout << "copied(2, 3)        : " << copied(2, 3) << "\n\n";
 
-// Copy Construction Example
-// Demonstrates copying a Function instance.
-static void copy() {
-    Function<int(int)> a([](int x) { return x * 2; });
-    Function<int(int)> b(a);
-    print("copy:", b(6));
-}
+    // Demonstrates move construction.
+    setTitle("Move");
+    Function<int(int, int)> source(free_add);
+    Function<int(int, int)> moved(std::move(source));
+    std::cout << "Source after move   : " << (source ? "non-empty" : "empty") << "\n";
+    std::cout << "Moved               : " << (moved ? "non-empty" : "empty") << "\n";
+    std::cout << "moved(5, 6)         : " << moved(5, 6) << "\n\n";
 
-// Move Construction Example
-// Demonstrates ownership transfer through move construction.
-static void move() {
-    Function<int(int)> a([](int x) { return x * 2; });
-    Function<int(int)> b(std::move(a));
-    print("move:", b(7));
-    print("moved-from empty:", (a == nullptr ? "true" : "false"));
-}
+    // Demonstrates reset and reassignment.
+    setTitle("Reset And Reassign");
+    Function<int(int)> g([](int x) { return x * 2; });
+    std::cout << "Before reset        : " << (g ? "non-empty" : "empty") << "\n";
+    std::cout << "g(4)                : " << g(4) << "\n";
+    g.reset();
+    std::cout << "After reset         : " << (g ? "non-empty" : "empty") << "\n";
+    g = [](int x) { return x * 3; };
+    std::cout << "After reassign      : " << (g ? "non-empty" : "empty") << "\n";
+    std::cout << "g(4)                : " << g(4) << "\n\n";
 
-// Reset Example
-// Demonstrates clearing the stored callable.
-static void reset() {
-    Function<int(int, int)> f(add);
-    f.reset();
-    print("after reset:", (f == nullptr ? "true" : "false"));
-}
+    // Demonstrates swapping two callable objects.
+    setTitle("Swap");
+    Function<int(int, int)> a(free_add);
+    Function<int(int, int)> b([](int x, int y) { return x * y; });
+    std::cout << "a(3, 4) before swap : " << a(3, 4) << "\n";
+    std::cout << "b(3, 4) before swap : " << b(3, 4) << "\n";
+    a.swap(b);
+    std::cout << "a(3, 4) after swap  : " << a(3, 4) << "\n";
+    std::cout << "b(3, 4) after swap  : " << b(3, 4) << "\n";
 
-// Empty State Example
-// Demonstrates checking whether a Function is empty.
-static void empty_check() {
-    Function<int(int)> f;
-    print("empty bool:", (f ? "true" : "false"));
-}
-
-// String Return Example
-// Demonstrates non-primitive return types.
-static void string_return() {
-    Function<std::string(std::string)> f(
-        [](std::string name) {
-            return "hello, " + name;
-        }
-    );
-
-    print("string return:", f("world"));
-}
-
-void run_function_examples() {
-    std::cout << "Function Examples\n\n";
-
-    free_function();
-    lambda();
-    capturing_lambda();
-    callable_object();
-    reassign();
-    copy();
-    move();
-    reset();
-    empty_check();
-    string_return();
-
+    borderLine();
     std::cout << "\n";
+    return 0;
 }

@@ -1,54 +1,69 @@
 #pragma once
 
-#include "detail/Storage.h"
-#include "detail/SBOTraits.h"
-#include "detail/VTable.h"
-#include "detail/VTableFactory.h"
+#include <FunctionPro/Detail/CallableStorage.h>
+#include <FunctionPro/Detail/SBOTraits.h>
+#include <FunctionPro/Detail/VTable.h>
+#include <FunctionPro/Detail/VTableFactory.h>
+
+#include <concepts>
+#include <cstddef>
+#include <functional>
+#include <type_traits>
+#include <utility>
 
 namespace FunctionPro {
 
-// MoveOnlyFunction
-// move-only callable wrapper with SBO
-template<typename>
-class MoveOnlyFunction;
+    // Move-only type-erased callable wrapper with Small Buffer Optimization.
+    // Supports movable callables and prohibits copying.
+    template<typename>
+    class MoveOnlyFunction;
 
-template<typename R, typename... Args>
-class MoveOnlyFunction<R(Args...)> {
-private:
-    // Core State
-    const VTable<R, Args...>* vtable_ = nullptr;
-    Storage                   storage_;
+    template<typename R, typename... Args>
+    class MoveOnlyFunction<R(Args...)> {
+    private:
 
-public:
-    // Constructors & Destructor
-    MoveOnlyFunction() noexcept = default;
-    MoveOnlyFunction(std::nullptr_t) noexcept;
+        // Core function state.
+        const Detail::VTable<R, Args...>* vtable_ = nullptr;
+        Detail::CallableStorage           storage_{};
 
-    template<typename T,
-             typename = std::enable_if_t<
-                 !std::is_same_v<std::decay_t<T>, MoveOnlyFunction> &&
-                 std::is_invocable_r_v<R, std::decay_t<T>, Args...>>>
-    MoveOnlyFunction(T&& callable);
+    public:
 
-    ~MoveOnlyFunction();
+        // Constructors and destructor.
+        MoveOnlyFunction()               noexcept = default;
+        MoveOnlyFunction(std::nullptr_t) noexcept;
 
-    MoveOnlyFunction(const MoveOnlyFunction&)             = delete;
-    MoveOnlyFunction& operator=(const MoveOnlyFunction&)  = delete;
+        template<typename T>
+            requires (!std::same_as<std::decay_t<T>, MoveOnlyFunction<R(Args...)>>)
+        && std::is_invocable_r_v<R, std::decay_t<T>, Args...>
+            MoveOnlyFunction(T&& callable);
 
-    MoveOnlyFunction(MoveOnlyFunction&& other)             noexcept;
-    MoveOnlyFunction& operator=(MoveOnlyFunction&& other)  noexcept;
+        ~MoveOnlyFunction();
 
-    // Invocation
-    R operator()(Args... args) const;
+        MoveOnlyFunction(const MoveOnlyFunction&) = delete;
+        MoveOnlyFunction& operator=(const MoveOnlyFunction&) = delete;
 
-    // State
-    [[nodiscard]] explicit operator bool() const noexcept;
-    void reset() noexcept;
+        MoveOnlyFunction(MoveOnlyFunction&& other)             noexcept;
+        MoveOnlyFunction& operator=(MoveOnlyFunction&& other)  noexcept;
 
-    // Equality
-    [[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
-    [[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
-};
+        // Invokes the stored callable.
+        R operator()(Args... args);
+
+        // State.
+        [[nodiscard]] explicit operator bool() const noexcept;
+        void reset() noexcept;
+        void swap(MoveOnlyFunction& other) noexcept;
+
+        // Equality comparison with nullptr.
+        [[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
+        [[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
+    };
+
+    // Exchanges the contents of two MoveOnlyFunction objects.
+    template<typename R, typename... Args>
+    void swap(MoveOnlyFunction<R(Args...)>& lhs,
+        MoveOnlyFunction<R(Args...)>& rhs) noexcept {
+        lhs.swap(rhs);
+    }
 
 } // namespace FunctionPro
 

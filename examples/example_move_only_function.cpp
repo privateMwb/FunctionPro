@@ -1,146 +1,108 @@
-// MoveOnlyFunction Examples
-// Demonstrates construction, invocation, ownership,
-// reassignment, and utility operations of MoveOnlyFunction.
+// MoveOnlyFunction Example
+// Demonstrates common MoveOnlyFunction operations, including construction,
+// invocation, move-only callable support, state management, and swapping.
 //
 // Covers:
-// - Free function wrapping
-// - Lambda wrapping
-// - Capturing lambdas
-// - Callable objects
-// - Move-only callable wrapping
-// - Callable reassignment
-// - Move semantics
-// - Reset operations
-// - Empty state checks
-// - String return types
+// - default and nullptr construction
+// - free function wrapping
+// - SBO lambda wrapping
+// - heap lambda wrapping
+// - move-only callable wrapping
+// - move semantics
+// - moving move-only callables
+// - reset and reassignment
+// - swap
 
-#include "../include/function/MoveOnlyFunction.h"
+#include "example_helper.h"
+#include <FunctionPro/MoveOnlyFunction.h>
 
-#include <iostream>
-#include <string>
-#include <iomanip>
 #include <memory>
 
 using namespace FunctionPro;
 
-static int add(int a, int b) { return a + b; }
+// Free function used throughout the examples.
+static int free_add(int a, int b) { return a + b; }
 
-template<typename T>
-static void print(const std::string& title, const T& value) {
-    std::cout << std::left
-              << std::setw(40) << title
-              << std::setw(20) << value
-              << "\n";
-}
+int main() {
+    mainTitle("\nMoveOnlyFunction Examples");
+    borderLine();
 
-// Free Function Example
-// Demonstrates wrapping and invoking a free function.
-static void free_function() {
-    MoveOnlyFunction<int(int, int)> f(add);
-    print("free function:", f(2, 3));
-}
+    // Demonstrates default and nullptr construction.
+    setTitle("Construction");
+    MoveOnlyFunction<int(int, int)> empty;
+    std::cout << "Default constructed : " << (empty ? "non-empty" : "empty") << "\n";
+    MoveOnlyFunction<int(int, int)> from_null(nullptr);
+    std::cout << "From nullptr        : " << (from_null ? "non-empty" : "empty") << "\n\n";
 
-// Lambda Example
-// Demonstrates wrapping and invoking a lambda.
-static void lambda() {
-    MoveOnlyFunction<int(int)> f([](int x) { return x * 2; });
-    print("lambda:", f(5));
-}
+    // Demonstrates wrapping a free function.
+    setTitle("Free Function");
+    MoveOnlyFunction<int(int, int)> f(free_add);
+    std::cout << "Wraps free function : " << (f ? "yes" : "no") << "\n";
+    std::cout << "f(3, 4)             : " << f(3, 4) << "\n\n";
 
-// Capturing Lambda Example
-// Demonstrates lambda capture support.
-static void capturing_lambda() {
-    int multiplier = 4;
-    MoveOnlyFunction<int(int)> f([multiplier](int x) { return x * multiplier; });
-    print("capturing lambda:", f(3));
-}
+    // Demonstrates storing a small lambda inline.
+    setTitle("Lambda SBO");
+    int bias = 10;
+    MoveOnlyFunction<int(int)> sbo([bias](int x) { return x + bias; });
+    std::cout << "Stored inline       : " << (sbo ? "yes" : "no") << "\n";
+    std::cout << "sbo(5)              : " << sbo(5) << "\n\n";
 
-// Callable Object Example
-// Demonstrates wrapping a functor object.
-static void callable_object() {
-    struct Adder {
-        int offset;
-        int operator()(int x) const { return x + offset; }
-    };
-    MoveOnlyFunction<int(int)> f(Adder{10});
-    print("callable object:", f(5));
-}
+    // Demonstrates storing a large lambda on the heap.
+    setTitle("Lambda Heap");
+    struct BigCapture {
+        std::byte pad[64] = {};
+        int value = 42;
+    } big;
+    MoveOnlyFunction<int()> heap([big]() { return big.value; });
+    std::cout << "Stored on heap      : " << (heap ? "yes" : "no") << "\n";
+    std::cout << "heap()              : " << heap() << "\n\n";
 
-// Move-Only Callable Example
-// Demonstrates wrapping a non-copyable callable.
-static void move_only_callable() {
+    // Demonstrates wrapping a move-only callable.
+    setTitle("Move-Only Callable");
     auto ptr = std::make_unique<int>(99);
-    MoveOnlyFunction<int()> f([p = std::move(ptr)]() { return *p; });
-    print("move-only callable:", f());
-}
+    MoveOnlyFunction<int()> mof([p = std::move(ptr)]() { return *p; });
+    std::cout << "Wraps unique_ptr    : " << (mof ? "yes" : "no") << "\n";
+    std::cout << "mof()               : " << mof() << "\n\n";
 
-// Callable Reassignment Example
-// Demonstrates replacing one callable with another.
-static void reassign() {
-    MoveOnlyFunction<int(int, int)> f(add);
-    f = [](int a, int b) { return a * b; };
-    print("reassigned:", f(3, 4));
-}
+    // Demonstrates move construction.
+    setTitle("Move");
+    MoveOnlyFunction<int(int, int)> source(free_add);
+    MoveOnlyFunction<int(int, int)> moved(std::move(source));
+    std::cout << "Source after move   : " << (source ? "non-empty" : "empty") << "\n";
+    std::cout << "Moved               : " << (moved ? "non-empty" : "empty") << "\n";
+    std::cout << "moved(5, 6)         : " << moved(5, 6) << "\n\n";
 
-// Move Construction Example
-// Demonstrates ownership transfer through move construction.
-static void move() {
-    MoveOnlyFunction<int(int)> a([](int x) { return x * 2; });
-    MoveOnlyFunction<int(int)> b(std::move(a));
-    print("move:", b(7));
-    print("moved-from empty:", (a == nullptr ? "true" : "false"));
-}
+    // Demonstrates moving a move-only callable.
+    setTitle("Move Of Move-Only Callable");
+    auto ptr2 = std::make_unique<int>(77);
+    MoveOnlyFunction<int()> mof_src([p = std::move(ptr2)]() { return *p; });
+    MoveOnlyFunction<int()> mof_dst(std::move(mof_src));
+    std::cout << "Source after move   : " << (mof_src ? "non-empty" : "empty") << "\n";
+    std::cout << "Destination         : " << (mof_dst ? "non-empty" : "empty") << "\n";
+    std::cout << "mof_dst()           : " << mof_dst() << "\n\n";
 
-// Move Assignment Example
-// Demonstrates ownership transfer through move assignment.
-static void move_assign() {
-    MoveOnlyFunction<int(int)> a([](int x) { return x * 3; });
-    MoveOnlyFunction<int(int)> b;
-    b = std::move(a);
-    print("move assign:", b(4));
-    print("moved-from empty:", (a == nullptr ? "true" : "false"));
-}
+    // Demonstrates reset and reassignment.
+    setTitle("Reset And Reassign");
+    MoveOnlyFunction<int(int)> g([](int x) { return x * 2; });
+    std::cout << "Before reset        : " << (g ? "non-empty" : "empty") << "\n";
+    std::cout << "g(4)                : " << g(4) << "\n";
+    g.reset();
+    std::cout << "After reset         : " << (g ? "non-empty" : "empty") << "\n";
+    g = [](int x) { return x * 3; };
+    std::cout << "After reassign      : " << (g ? "non-empty" : "empty") << "\n";
+    std::cout << "g(4)                : " << g(4) << "\n\n";
 
-// Reset Example
-// Demonstrates clearing the stored callable.
-static void reset() {
-    MoveOnlyFunction<int(int, int)> f(add);
-    f.reset();
-    print("after reset:", (f == nullptr ? "true" : "false"));
-}
+    // Demonstrates swapping two callable objects.
+    setTitle("Swap");
+    MoveOnlyFunction<int(int, int)> a(free_add);
+    MoveOnlyFunction<int(int, int)> b([](int x, int y) { return x * y; });
+    std::cout << "a(3, 4) before swap : " << a(3, 4) << "\n";
+    std::cout << "b(3, 4) before swap : " << b(3, 4) << "\n";
+    a.swap(b);
+    std::cout << "a(3, 4) after swap  : " << a(3, 4) << "\n";
+    std::cout << "b(3, 4) after swap  : " << b(3, 4) << "\n";
 
-// Empty State Example
-// Demonstrates checking whether a MoveOnlyFunction is empty.
-static void empty_check() {
-    MoveOnlyFunction<int(int)> f;
-    print("empty bool:", (f ? "true" : "false"));
-}
-
-// String Return Example
-// Demonstrates non-primitive return types.
-static void string_return() {
-    MoveOnlyFunction<std::string(std::string)> f(
-        [](std::string name) {
-            return "hello, " + name;
-        }
-    );
-    print("string return:", f("world"));
-}
-
-void run_move_only_function_examples() {
-    std::cout << "MoveOnlyFunction Examples\n\n";
-
-    free_function();
-    lambda();
-    capturing_lambda();
-    callable_object();
-    move_only_callable();
-    reassign();
-    move();
-    move_assign();
-    reset();
-    empty_check();
-    string_return();
-
+    borderLine();
     std::cout << "\n";
+    return 0;
 }

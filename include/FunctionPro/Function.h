@@ -5,34 +5,38 @@
 #include <FunctionPro/Detail/VTable.h>
 #include <FunctionPro/Detail/VTableFactory.h>
 
+#include <concepts>
 #include <cstddef>
-#include <cstdlib>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
+
 namespace FunctionPro {
 
-    // Function
-    // copyable callable wrapper with SBO
+    // Type-erased callable wrapper with Small Buffer Optimization (SBO).
+    // Provides std::function-like copy, move, and invocation semantics.
     template<typename>
     class Function;
 
     template<typename R, typename... Args>
     class Function<R(Args...)> {
     private:
-        // Core State
-        const VTable<R, Args...>* vtable_ = nullptr;
-        CallableStorage                    storage_;
+
+        // Core function state.
+        const Detail::VTable<R, Args...>* vtable_ = nullptr;
+        Detail::CallableStorage           storage_{};
 
     public:
-        // Constructors & Destructor
-        Function()                noexcept = default;
-        Function(std::nullptr_t)  noexcept;
 
-        template<typename T,
-            typename = std::enable_if_t<
-            !std::is_same_v<std::decay_t<T>, Function>&&
-            std::is_invocable_r_v<R, std::decay_t<T>, Args...>>>
+        // Constructors and destructor.
+        Function()               noexcept = default;
+        Function(std::nullptr_t) noexcept;
+
+        template<typename T>
+            requires (!std::same_as<std::decay_t<T>, Function<R(Args...)>>)
+        && std::is_invocable_r_v<R, std::decay_t<T>, Args...>
+            && std::is_copy_constructible_v<std::decay_t<T>>
             Function(T&& callable);
 
         ~Function();
@@ -40,20 +44,27 @@ namespace FunctionPro {
         Function(const Function& other);
         Function& operator=(const Function& other);
 
-        Function(Function&& other)            noexcept;
-        Function& operator=(Function&& other) noexcept;
+        Function(Function&& other)             noexcept;
+        Function& operator=(Function&& other)  noexcept;
 
-        // Invocation
+        // Invokes the stored callable.
         R operator()(Args... args) const;
 
-        // State
+        // State.
         [[nodiscard]] explicit operator bool() const noexcept;
         void reset() noexcept;
+        void swap(Function& other) noexcept;
 
-        // Equality
+        // Equality comparison with nullptr.
         [[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
         [[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
     };
+
+    // Swaps two Function objects.
+    template<typename R, typename... Args>
+    void swap(Function<R(Args...)>& lhs, Function<R(Args...)>& rhs) noexcept {
+        lhs.swap(rhs);
+    }
 
 } // namespace FunctionPro
 

@@ -28,14 +28,15 @@ add_library(FunctionPro INTERFACE)
 target_include_directories(
     FunctionPro
     INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 # Require C++23 for all targets that consume FunctionPro.
 target_compile_features(
     FunctionPro
     INTERFACE
-        cxx_std_23
+    cxx_std_23
 )
 
 
@@ -56,7 +57,7 @@ add_executable(
 target_link_libraries(
     tests
     PRIVATE
-        FunctionPro
+    FunctionPro
 )
 
 
@@ -77,7 +78,7 @@ add_executable(
 target_link_libraries(
     benchmarks
     PRIVATE
-        FunctionPro
+    FunctionPro
 )
 
 
@@ -95,7 +96,7 @@ add_executable(
 target_link_libraries(
     example_function
     PRIVATE
-        FunctionPro
+    FunctionPro
 )
 
 # Build the MoveOnlyFunction usage example.
@@ -108,7 +109,7 @@ add_executable(
 target_link_libraries(
     example_move_only_function
     PRIVATE
-        FunctionPro
+    FunctionPro
 )
 
 # Build the FunctionRef usage example.
@@ -121,7 +122,7 @@ add_executable(
 target_link_libraries(
     example_function_ref
     PRIVATE
-        FunctionPro
+    FunctionPro
 )
 
 

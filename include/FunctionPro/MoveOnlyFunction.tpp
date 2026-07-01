@@ -1,111 +1,147 @@
+// ============================================================
+// MoveOnlyFunction.tpp
+// Template implementation for FunctionPro::MoveOnlyFunction.
+// ============================================================
+//
+//  Sections:
+//   1. Constructors & Destructor
+//   2. Move Semantics
+//   3. Invocation
+//   4. State
+//   5. Equality
+//
+// ============================================================
+
 #include <stdexcept>
 #include <functional>
 
 namespace FunctionPro {
 
-// Constructors & Destructor
-template<typename R, typename... Args>
-MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(std::nullptr_t) noexcept
-: vtable_(nullptr) {}
+	// ============================================================
+	//  Section 1 — Constructors & Destructor
+	// ============================================================
 
-template<typename R, typename... Args>
-template<typename T, typename>
-MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(T&& callable) {
-	using DecayT = std::decay_t<T>;
-
-	if constexpr (SBOTraits<DecayT>::fits) {
-		new (storage_.buffer) DecayT(std::forward<T>(callable));
-	} else {
-		storage_.heap = new DecayT(std::forward<T>(callable));
+	template<typename R, typename... Args>
+	MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(std::nullptr_t) noexcept
+		: vtable_(nullptr) {
 	}
 
-	vtable_ = VTableFactory<DecayT, R, Args...>::getMoveOnly();
-}
+	template<typename R, typename... Args>
+	template<typename T>
+		requires (!std::same_as<std::decay_t<T>, MoveOnlyFunction<R(Args...)>>)
+	&& std::is_invocable_r_v<R, std::decay_t<T>, Args...>
+		MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(T&& callable) {
+		using DecayT = std::decay_t<T>;
 
-template<typename R, typename... Args>
-MoveOnlyFunction<R(Args...)>::~MoveOnlyFunction() {
-	reset();
-}
-
-template<typename R, typename... Args>
-MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(
-    MoveOnlyFunction<R(Args...)>&& other) noexcept {
-	if (other.vtable_) {
-		vtable_ = other.vtable_;
-
-		bool fromHeap = other.storage_.heap != nullptr;
-		vtable_->move(storage_.get(), other.storage_.get(), fromHeap);
-
-		if (fromHeap) {
-			storage_.heap = other.storage_.heap;
+		// Store small callables inline; allocate larger ones on the heap.
+		if constexpr (Detail::SBOTraits<DecayT>::fits) {
+			new (storage_.inlineSlot()) DecayT(std::forward<T>(callable));
+		}
+		else {
+			*storage_.heapSlot() = new DecayT(std::forward<T>(callable));
 		}
 
-		other.vtable_       = nullptr;
-		other.storage_.heap = nullptr;
+		// Bind the callable's move-only type-erased operations.
+		vtable_ = Detail::VTableFactory<DecayT, R, Args...>::getMoveOnly();
 	}
-}
 
-template<typename R, typename... Args>
-MoveOnlyFunction<R(Args...)>&
-MoveOnlyFunction<R(Args...)>::operator=(
-    MoveOnlyFunction<R(Args...)>&& other) noexcept {
-	if (this != &other) {
+	template<typename R, typename... Args>
+	MoveOnlyFunction<R(Args...)>::~MoveOnlyFunction() {
 		reset();
+	}
 
+
+	// ============================================================
+	//  Section 2 — Move Semantics
+	// ============================================================
+
+	template<typename R, typename... Args>
+	MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(MoveOnlyFunction&& other) noexcept {
+
+		// Transfer ownership of the stored callable.
 		if (other.vtable_) {
 			vtable_ = other.vtable_;
+			vtable_->move(storage_, other.storage_);
 
-			bool fromHeap = other.storage_.heap != nullptr;
-			vtable_->move(storage_.get(), other.storage_.get(), fromHeap);
-
-			if (fromHeap) {
-				storage_.heap = other.storage_.heap;
-			}
-
-			other.vtable_       = nullptr;
-			other.storage_.heap = nullptr;
+			other.vtable_ = nullptr;
 		}
 	}
 
-	return *this;
-}
+	template<typename R, typename... Args>
+	MoveOnlyFunction<R(Args...)>&
+		MoveOnlyFunction<R(Args...)>::operator=(MoveOnlyFunction&& other) noexcept {
+		if (this != &other) {
+			reset();
 
-// Invocation
-template<typename R, typename... Args>
-R MoveOnlyFunction<R(Args...)>::operator()(Args... args) const {
-	if (!vtable_) {
-		throw std::bad_function_call{};
+			// Transfer ownership from the source object.
+			if (other.vtable_) {
+				vtable_ = other.vtable_;
+				vtable_->move(storage_, other.storage_);
+
+				other.vtable_ = nullptr;
+			}
+		}
+
+		return *this;
 	}
 
-	return vtable_->invoke(
-	           const_cast<void*>(storage_.get()),
-	           std::forward<Args>(args)...);
-}
 
-// State
-template<typename R, typename... Args>
-MoveOnlyFunction<R(Args...)>::operator bool() const noexcept {
-	return vtable_ != nullptr;
-}
+	// ============================================================
+	//  Section 3 — Invocation
+	// ============================================================
 
-template<typename R, typename... Args>
-void MoveOnlyFunction<R(Args...)>::reset() noexcept {
-	if (vtable_) {
-		vtable_->destroy(storage_.get());
-		vtable_       = nullptr;
-		storage_.heap = nullptr;
+	template<typename R, typename... Args>
+	R MoveOnlyFunction<R(Args...)>::operator()(Args... args) {
+
+		// Match std::function behavior for empty invocation.
+		if (!vtable_)
+			throw std::bad_function_call{};
+
+		return vtable_->invoke(storage_, std::forward<Args>(args)...);
 	}
-}
 
-// Equality
-template<typename R, typename... Args>
-bool MoveOnlyFunction<R(Args...)>::operator==(std::nullptr_t) const noexcept {
-	return vtable_ == nullptr;
-}
 
-template<typename R, typename... Args>
-bool MoveOnlyFunction<R(Args...)>::operator!=(std::nullptr_t) const noexcept {
-	return vtable_ != nullptr;
-}
+	// ============================================================
+	//  Section 4 — State
+	// ============================================================
+
+	template<typename R, typename... Args>
+	MoveOnlyFunction<R(Args...)>::operator bool() const noexcept {
+		return vtable_ != nullptr;
+	}
+
+	template<typename R, typename... Args>
+	void MoveOnlyFunction<R(Args...)>::reset() noexcept {
+
+		// Destroy the stored callable and restore the empty state.
+		if (vtable_) {
+			vtable_->destroy(storage_);
+			vtable_ = nullptr;
+			storage_.heap = nullptr;
+		}
+	}
+
+	template<typename R, typename... Args>
+	void MoveOnlyFunction<R(Args...)>::swap(MoveOnlyFunction& other) noexcept {
+
+		// Exchange the stored callable state.
+		std::swap(vtable_, other.vtable_);
+		std::swap(storage_, other.storage_);
+	}
+
+
+	// ============================================================
+	//  Section 5 — Equality
+	// ============================================================
+
+	template<typename R, typename... Args>
+	bool MoveOnlyFunction<R(Args...)>::operator==(std::nullptr_t) const noexcept {
+		return vtable_ == nullptr;
+	}
+
+	template<typename R, typename... Args>
+	bool MoveOnlyFunction<R(Args...)>::operator!=(std::nullptr_t) const noexcept {
+		return vtable_ != nullptr;
+	}
 
 } // namespace FunctionPro

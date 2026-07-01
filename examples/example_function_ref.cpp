@@ -1,131 +1,94 @@
-// FunctionRef Examples
-// Demonstrates construction, invocation, rebinding,
-// and utility operations of FunctionRef.
+// Basic FunctionRef example.
 //
-// Covers:
+// Demonstrates:
+// - Default construction
 // - Free function wrapping
 // - Lambda wrapping
-// - Capturing lambdas
-// - Callable objects
-// - Void return type
-// - Reference parameters
+// - Mutable lambda wrapping
+// - Functor wrapping
 // - Copy semantics
-// - Rebinding to a new callable
-// - Empty state checks
+// - Rebinding
+// - Passing FunctionRef by value
 
-#include "../include/function/FunctionRef.h"
-
-#include <iostream>
-#include <string>
-#include <iomanip>
+#include "example_helper.h"
+#include <FunctionPro/FunctionRef.h>
 
 using namespace FunctionPro;
 
-int  add(int a, int b)  { return a + b; }
-void increment(int& x)  { x += 1; }
+static int free_add(int a, int b) { return a + b; }
+static int free_mul(int a, int b) { return a * b; }
 
-template<typename T>
-void print(const std::string& title, const T& value) {
-    std::cout << std::left
-              << std::setw(40) << title
-              << std::setw(20) << value
-              << "\n";
-}
+int main() {
+    mainTitle("\nFunctionRef Examples");
+    borderLine();
 
-// Free Function Example
-// Demonstrates wrapping and invoking a free function.
-static void free_function() {
-    FunctionRef<int(int, int)> ref(add);
-    print("free function:", ref(2, 3));
-}
+    // Default construction.
+    setTitle("Construction");
+    FunctionRef<int(int, int)> empty;
+    std::cout << "Default constructed : "
+              << (empty ? "non-empty" : "empty") << "\n\n";
 
-// Lambda Example
-// Demonstrates wrapping and invoking a lambda.
-static void lambda() {
-    auto lam = [](int x) { return x * 2; };
-    FunctionRef<int(int)> ref(lam);
-    print("lambda:", ref(5));
-}
+    // Wrap a free function.
+    setTitle("Free Function");
+    FunctionRef<int(int, int)> f(free_add);
+    std::cout << "Refers to free fn   : " << (f ? "yes" : "no") << "\n";
+    std::cout << "f(3, 4)             : " << f(3, 4) << "\n\n";
 
-// Capturing Lambda Example
-// Demonstrates lambda capture support.
-static void capturing_lambda() {
-    int multiplier = 4;
-    auto lam = [multiplier](int x) { return x * multiplier; };
-    FunctionRef<int(int)> ref(lam);
-    print("capturing lambda:", ref(3));
-}
+    // Wrap a lambda without taking ownership.
+    setTitle("Lambda");
+    int bias = 10;
+    auto lam = [bias](int x, int y) { return x + y + bias; };
+    FunctionRef<int(int, int)> ref(lam);
+    std::cout << "Refers to lambda    : " << (ref ? "yes" : "no") << "\n";
+    std::cout << "ref(3, 4)           : " << ref(3, 4) << "\n\n";
 
-// Callable Object Example
-// Demonstrates wrapping a functor object.
-static void callable_object() {
+    // Reference a mutable lambda.
+    setTitle("Mutable Lambda");
+    int counter = 0;
+    auto mutable_lam = [counter](int x) mutable { return x + ++counter; };
+    FunctionRef<int(int)> mref(mutable_lam);
+    std::cout << "mref(10)            : " << mref(10) << "\n";
+    std::cout << "mref(10)            : " << mref(10) << "\n\n";
+
+    // Wrap a function object.
+    setTitle("Functor");
     struct Adder {
-        int offset;
-        int operator()(int x) const { return x + offset; }
+        int base;
+        int operator()(int x, int y) const { return x + y + base; }
     };
-    Adder adder{10};
-    FunctionRef<int(int)> ref(adder);
-    print("callable object:", ref(5));
-}
 
-// Void Return Example
-// Demonstrates void return type support.
-static void void_return() {
-    FunctionRef<void(int&)> ref(increment);
-    int x = 0;
-    ref(x);
-    print("void return (x after increment):", x);
-}
+    Adder adder{5};
+    FunctionRef<int(int, int)> fref(adder);
+    std::cout << "Refers to functor   : " << (fref ? "yes" : "no") << "\n";
+    std::cout << "fref(3, 4)          : " << fref(3, 4) << "\n\n";
 
-// Reference Parameter Example
-// Demonstrates passing and mutating a reference parameter.
-static void reference_parameter() {
-    int value = 10;
-    auto lam = [](int& x) { x *= 2; };
-    FunctionRef<void(int&)> ref(lam);
-    ref(value);
-    print("reference parameter:", value);
-}
+    // Copying creates another reference to the same callable.
+    setTitle("Copy");
+    FunctionRef<int(int, int)> original(free_add);
+    FunctionRef<int(int, int)> copied(original);
+    std::cout << "Original            : " << (original ? "non-empty" : "empty") << "\n";
+    std::cout << "Copied              : " << (copied ? "non-empty" : "empty") << "\n";
+    std::cout << "original(2, 3)      : " << original(2, 3) << "\n";
+    std::cout << "copied(2, 3)        : " << copied(2, 3) << "\n\n";
 
-// Copy Example
-// Demonstrates copying a FunctionRef — both refer to the same callable.
-static void copy() {
-    auto lam = [](int x) { return x * 4; };
-    FunctionRef<int(int)> a(lam);
-    FunctionRef<int(int)> b(a);
-    print("copy:", b(2));
-}
+    // Rebind to a different callable.
+    setTitle("Rebind");
+    FunctionRef<int(int, int)> r(free_add);
+    std::cout << "r(3, 4) before      : " << r(3, 4) << "\n";
+    r = FunctionRef<int(int, int)>(free_mul);
+    std::cout << "r(3, 4) after       : " << r(3, 4) << "\n\n";
 
-// Rebind Example
-// Demonstrates reassigning a FunctionRef to a different callable.
-static void rebind() {
-    auto lam1 = [](int x) { return x + 1; };
-    auto lam2 = [](int x) { return x + 2; };
-    FunctionRef<int(int)> ref(lam1);
-    print("before rebind:", ref(0));
-    ref = FunctionRef<int(int)>(lam2);
-    print("after rebind:", ref(0));
-}
+    // Pass FunctionRef by value without copying the callable.
+    setTitle("Pass By Value");
+    auto invoke = [](FunctionRef<int(int, int)> fn, int a, int b) {
+        return fn(a, b);
+    };
 
-// Empty State Example
-// Demonstrates checking whether a FunctionRef is empty.
-static void empty_check() {
-    FunctionRef<int(int)> ref;
-    print("empty bool:", (ref ? "true" : "false"));
-}
+    FunctionRef<int(int, int)> pref(free_add);
+    std::cout << "Passed to lambda    : " << invoke(pref, 6, 7) << "\n";
+    std::cout << "Passed free fn      : " << invoke(free_mul, 6, 7) << "\n";
 
-void run_function_ref_examples() {
-    std::cout << "FunctionRef Examples\n\n";
-
-    free_function();
-    lambda();
-    capturing_lambda();
-    callable_object();
-    void_return();
-    reference_parameter();
-    copy();
-    rebind();
-    empty_check();
-
+    borderLine();
     std::cout << "\n";
+    return 0;
 }

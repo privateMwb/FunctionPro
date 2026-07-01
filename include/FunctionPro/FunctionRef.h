@@ -1,49 +1,54 @@
 #pragma once
 
-#include <functional>
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
 namespace FunctionPro {
 
-// FunctionRef
-// non-owning view of a callable — no allocation, no ownership
-// the caller must ensure the callable outlives the FunctionRef
+// Non-owning type-erased callable reference.
+// Performs no allocations and does not own the referenced callable.
+// The callable must outlive the FunctionRef instance.
 template<typename>
 class FunctionRef;
 
 template<typename R, typename... Args>
 class FunctionRef<R(Args...)> {
 private:
-    // Core State
-    void* ptr_                     = nullptr;
-    R (*invoke_)(void*, Args&&...) = nullptr;
+
+    // Stores either an object pointer or a function pointer.
+    union PtrStorage {
+        void*  obj;
+        void (*fn)();
+    };
+
+    // Core function reference state.
+    PtrStorage ptr_ = {};
+    R (*invoke_)(PtrStorage, Args&&...) = nullptr;
 
 public:
-    // Constructors & Destructor
+
+    // Constructors and destructor.
     FunctionRef() noexcept = default;
 
-    template<typename T,
-             typename = std::enable_if_t<
-                 !std::is_same_v<std::decay_t<T>, FunctionRef> &&
-                 std::is_invocable_r_v<R, std::decay_t<T>, Args...>>>
-    FunctionRef(T&& callable) noexcept;
+    template<typename T>
+        requires (!std::same_as<std::decay_t<T>, FunctionRef<R(Args...)>>)
+              && std::is_invocable_r_v<R, T&, Args...>
+    FunctionRef(T& callable) noexcept;
 
-    ~FunctionRef() = default;
-
-    FunctionRef(const FunctionRef&)            = default;
-    FunctionRef& operator=(const FunctionRef&) = default;
-
-    FunctionRef(FunctionRef&&)            noexcept = default;
+    ~FunctionRef()                              = default;
+    FunctionRef(const FunctionRef&)             = default;
+    FunctionRef& operator=(const FunctionRef&)  = default;
+    FunctionRef(FunctionRef&&) noexcept         = default;
     FunctionRef& operator=(FunctionRef&&) noexcept = default;
 
-    // Invocation
+    // Invokes the referenced callable.
     R operator()(Args... args) const;
 
-    // State
+    // State.
     [[nodiscard]] explicit operator bool() const noexcept;
 
-    // Equality
+    // Equality comparison with nullptr.
     [[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
     [[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
 };
