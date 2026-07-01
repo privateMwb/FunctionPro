@@ -30,12 +30,46 @@ public:
 
     // Constructors and destructor.
     FunctionRef() noexcept = default;
-
+    
+    // Clang rejects the constrained out-of-line definition for this constructor,
+    // so it is defined inline in the header when compiling with Clang.
+    #ifndef __clang__ 
     template<typename T>
         requires (!std::same_as<std::decay_t<T>, FunctionRef<R(Args...)>>)
               && std::is_invocable_r_v<R, T&, Args...>
     FunctionRef(T& callable) noexcept;
+    #else
+    template<typename T>
+        requires (!std::same_as<std::decay_t<T>, FunctionRef<R(Args...)>>)
+    && std::is_invocable_r_v<R, T&, Args...>
+        FunctionRef(T& callable) noexcept {
+        using DecayT = std::decay_t<T>;
 
+        if constexpr (std::is_pointer_v<DecayT> &&
+            std::is_function_v<std::remove_pointer_t<DecayT>>) {
+            // T is already a function pointer (e.g. int(*)(int,int))
+            ptr_.fn = reinterpret_cast<void(*)()>(callable);
+            invoke_ = [](PtrStorage p, Args&&... args) -> R {
+                return reinterpret_cast<DecayT>(p.fn)(std::forward<Args>(args)...);
+                };
+        }
+        else if constexpr (std::is_function_v<std::remove_reference_t<T>>) {
+            // T is a raw function type (e.g. int(int,int)) — decay to pointer first
+            ptr_.fn = reinterpret_cast<void(*)()>(static_cast<DecayT>(callable));
+            invoke_ = [](PtrStorage p, Args&&... args) -> R {
+                return reinterpret_cast<DecayT>(p.fn)(std::forward<Args>(args)...);
+                };
+        }
+        else {
+            // T is a callable object — store address through obj
+            ptr_.obj = const_cast<void*>(static_cast<const void*>(&callable));
+            invoke_ = [](PtrStorage p, Args&&... args) -> R {
+                return (*static_cast<DecayT*>(p.obj))(std::forward<Args>(args)...);
+                };
+        }
+    }
+    #endif
+    
     ~FunctionRef()                              = default;
     FunctionRef(const FunctionRef&)             = default;
     FunctionRef& operator=(const FunctionRef&)  = default;

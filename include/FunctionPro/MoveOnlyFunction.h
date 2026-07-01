@@ -31,12 +31,32 @@ namespace FunctionPro {
         // Constructors and destructor.
         MoveOnlyFunction()               noexcept = default;
         MoveOnlyFunction(std::nullptr_t) noexcept;
-
+        
+        // Clang rejects the constrained out-of-line definition for this constructor,
+        // so it is defined inline in the header when compiling with Clang.
+        #ifndef __clang__ 
         template<typename T>
             requires (!std::same_as<std::decay_t<T>, MoveOnlyFunction<R(Args...)>>)
         && std::is_invocable_r_v<R, std::decay_t<T>, Args...>
             MoveOnlyFunction(T&& callable);
-
+        #else
+        template<typename T>
+		requires (!std::same_as<std::decay_t<T>, MoveOnlyFunction<R(Args...)>>)
+	&& std::is_invocable_r_v<R, std::decay_t<T>, Args...>
+		MoveOnlyFunction(T&& callable) {
+		using DecayT = std::decay_t<T>;
+		// Store small callables inline; allocate larger ones on the heap.
+		if constexpr (Detail::SBOTraits<DecayT>::fits) {
+			new (storage_.inlineSlot()) DecayT(std::forward<T>(callable));
+		}
+		else {
+			*storage_.heapSlot() = new DecayT(std::forward<T>(callable));
+		}
+		// Bind the callable's move-only type-erased operations.
+		vtable_ = Detail::VTableFactory<DecayT, R, Args...>::getMoveOnly();
+	}
+        #endif
+        
         ~MoveOnlyFunction();
 
         MoveOnlyFunction(const MoveOnlyFunction&) = delete;

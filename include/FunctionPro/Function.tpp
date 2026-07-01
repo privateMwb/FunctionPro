@@ -24,6 +24,7 @@ template<typename R, typename... Args>
 Function<R(Args...)>::Function(std::nullptr_t) noexcept
     : vtable_(nullptr) {}
 
+#ifndef __clang__ 
 template<typename R, typename... Args>
 template<typename T>
     requires (!std::same_as<std::decay_t<T>, Function<R(Args...)>>)
@@ -42,6 +43,7 @@ Function<R(Args...)>::Function(T&& callable) {
     // Bind the callable's type-erased operations.
     vtable_ = Detail::VTableFactory<DecayT, R, Args...>::get();
 }
+#endif
 
 template<typename R, typename... Args>
 Function<R(Args...)>::~Function() {

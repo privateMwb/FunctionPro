@@ -18,7 +18,10 @@ namespace FunctionPro {
     // ============================================================
     //  Section 1 — Constructors
     // ============================================================
-
+    
+    // Clang rejects the constrained out-of-line definition for this constructor,
+    // so it is defined inline in the header when compiling with Clang.
+    #ifndef __clang__
     template<typename R, typename... Args>
     template<typename T>
         requires (!std::same_as<std::decay_t<T>, FunctionRef<R(Args...)>>)
@@ -49,7 +52,8 @@ namespace FunctionPro {
                 };
         }
     }
-
+    #endif
+    
     // ============================================================
     //  Section 2 — Invocation
     // ============================================================

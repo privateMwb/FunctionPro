@@ -25,7 +25,10 @@ namespace FunctionPro {
 	MoveOnlyFunction<R(Args...)>::MoveOnlyFunction(std::nullptr_t) noexcept
 		: vtable_(nullptr) {
 	}
-
+  
+  // Clang rejects the constrained out-of-line definition for this constructor,
+  // so it is defined inline in the header when compiling with Clang.
+  #ifndef __clang__ 
 	template<typename R, typename... Args>
 	template<typename T>
 		requires (!std::same_as<std::decay_t<T>, MoveOnlyFunction<R(Args...)>>)
@@ -44,6 +47,7 @@ namespace FunctionPro {
 		// Bind the callable's move-only type-erased operations.
 		vtable_ = Detail::VTableFactory<DecayT, R, Args...>::getMoveOnly();
 	}
+	#endif
 
 	template<typename R, typename... Args>
 	MoveOnlyFunction<R(Args...)>::~MoveOnlyFunction() {

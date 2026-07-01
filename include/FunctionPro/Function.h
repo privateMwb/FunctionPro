@@ -32,13 +32,29 @@ namespace FunctionPro {
         // Constructors and destructor.
         Function()               noexcept = default;
         Function(std::nullptr_t) noexcept;
-
+        
+        // Clang rejects the constrained out-of-line definition for this constructor,
+        // so it is defined inline in the header when compiling with Clang.
+        #ifndef __clang__ 
         template<typename T>
-            requires (!std::same_as<std::decay_t<T>, Function<R(Args...)>>)
-        && std::is_invocable_r_v<R, std::decay_t<T>, Args...>
-            && std::is_copy_constructible_v<std::decay_t<T>>
-            Function(T&& callable);
-
+            requires (!std::same_as<std::decay_t<T>, Function<R(Args...)>>) && std::is_invocable_r_v<R, std::decay_t<T>, Args...> && std::is_copy_constructible_v<std::decay_t<T>>
+        Function(T&& callable);
+        #else
+        template<typename T>
+            requires (!std::same_as<std::decay_t<T>, Function<R(Args...)>>) && std::is_invocable_r_v<R, std::decay_t<T>, Args...> && std::is_copy_constructible_v<std::decay_t<T>>
+        Function(T&& callable) {
+          using DecayT = std::decay_t<T>;
+          // Store small callables inline; allocate larger ones on the heap.
+          if constexpr (Detail::SBOTraits<DecayT>::fits) {
+            new (storage_.inlineSlot()) DecayT(std::forward<T>(callable));
+          } else {
+            *storage_.heapSlot() = new DecayT(std::forward<T>(callable));
+          }
+          // Bind the callable's type-erased operations.
+          vtable_ = Detail::VTableFactory<DecayT, R, Args...>::get();
+        }
+        #endif
+        
         ~Function();
 
         Function(const Function& other);
