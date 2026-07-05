@@ -1,4 +1,4 @@
-#include "bench_helper.h"
+#include <common/framework.h>
 
 #include <functional>
 
@@ -216,9 +216,7 @@ static void bench_function_ref_vs_function() {
 }
 
 // Executes all Function benchmark cases.
-void run_function_benchmarks() {
-    setHeader("Function Benchmarks");
-
+static void run_benchmarks() {
     setSubHeader("Construct SBO");
     bench_construct_sbo();
     std::cout << "\n";
@@ -261,6 +259,6 @@ void run_function_benchmarks() {
 
     setSubHeader("FunctionRef vs Function vs std::function");
     bench_function_ref_vs_function();
-    borderLine();
-    std::cout << "\n";
 }
+
+REGISTER_BENCH_SUITE();

@@ -10,18 +10,14 @@
 // - Rebinding
 // - Passing FunctionRef by value
 
-#include "example_helper.h"
-#include <FunctionPro/FunctionRef.h>
+#include <common/framework.h>
 
 using namespace FunctionPro;
 
 static int free_add(int a, int b) { return a + b; }
 static int free_mul(int a, int b) { return a * b; }
 
-int main() {
-    mainTitle("\nFunctionRef Examples");
-    borderLine();
-
+static void run_examples() {
     // Default construction.
     setTitle("Construction");
     FunctionRef<int(int, int)> empty;
@@ -88,7 +84,6 @@ int main() {
     std::cout << "Passed to lambda    : " << invoke(pref, 6, 7) << "\n";
     std::cout << "Passed free fn      : " << invoke(free_mul, 6, 7) << "\n";
 
-    borderLine();
-    std::cout << "\n";
-    return 0;
 }
+
+REGISTER_EXAMPLE_SUITE();

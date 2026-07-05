@@ -15,7 +15,7 @@
 // - member and free swap
 // - non-copyable guarantees
 
-#include "test_helper.h"
+#include <common/framework.h>
 
 #include <iostream>
 #include <memory>
@@ -269,9 +269,7 @@ static void not_copyable() {
 }
 
 // Executes all MoveOnlyFunction test cases.
-void run_move_only_function_tests() {
-    setTitle("MoveOnlyFunction Tests");
-
+static void run_tests() {
     RUN(default_empty);
     RUN(null_ctor);
     RUN(free_function);
@@ -294,6 +292,6 @@ void run_move_only_function_tests() {
     RUN(swap_free);
     RUN(swap_with_empty);
     RUN(not_copyable);
-
-    std::cout << "\n";
 }
+
+REGISTER_TEST_SUITE();

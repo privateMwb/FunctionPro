@@ -13,7 +13,7 @@
 // - callable reassignment
 // - member and free swap
 
-#include "test_helper.h"
+#include <common/framework.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -272,9 +272,7 @@ static void swap_with_empty() {
 }
 
 // Executes all Function test cases.
-void run_function_tests() {
-    setTitle("Function Tests");
-
+static void run_tests() {
     RUN(default_empty);
     RUN(null_ctor);
     RUN(free_function);
@@ -297,6 +295,6 @@ void run_function_tests() {
     RUN(swap_member);
     RUN(swap_free);
     RUN(swap_with_empty);
-
-    std::cout << "\n";
 }
+
+REGISTER_TEST_SUITE();

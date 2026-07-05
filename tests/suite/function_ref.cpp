@@ -14,7 +14,7 @@
 // - pass-by-value usage
 // - type traits
 
-#include "test_helper.h"
+#include <common/framework.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -194,9 +194,7 @@ static void not_owning() {
 }
 
 // Executes all FunctionRef test cases.
-void run_function_ref_tests() {
-    setTitle("FunctionRef Tests");
-
+static void run_tests() {
     RUN(default_empty);
     RUN(free_function);
     RUN(lambda);
@@ -212,6 +210,6 @@ void run_function_ref_tests() {
     RUN(non_owning_lifetime);
     RUN(pass_by_value);
     RUN(not_owning);
-
-    std::cout << "\n";
 }
+
+REGISTER_TEST_SUITE();

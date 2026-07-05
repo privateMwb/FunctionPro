@@ -12,7 +12,7 @@
 // - FunctionRef rebind vs Function reassign
 // - pass-by-value overhead
 
-#include "bench_helper.h"
+#include <common/framework.h>
 
 #include <functional>
 
@@ -198,9 +198,7 @@ static void bench_pass_by_value() {
 }
 
 // Executes all FunctionRef benchmarks.
-void run_function_ref_benchmarks() {
-    setHeader("FunctionRef Benchmarks");
-
+static void run_benchmarks() {
     setSubHeader("Construct Functor");
     bench_construct();
     std::cout << "\n";
@@ -231,6 +229,6 @@ void run_function_ref_benchmarks() {
 
     setSubHeader("Pass By Value");
     bench_pass_by_value();
-    borderLine();
-    std::cout << "\n";
 }
+
+REGISTER_BENCH_SUITE();

@@ -16,7 +16,7 @@
 // - SBO reset
 // - heap reset
 
-#include "bench_helper.h"
+#include <common/framework.h>
 
 #include <functional>
 #include <memory>
@@ -222,9 +222,7 @@ static void bench_reset_heap() {
 }
 
 // Executes all MoveOnlyFunction benchmarks.
-void run_move_only_function_benchmarks() {
-    setHeader("MoveOnlyFunction Benchmarks");
-
+static void run_benchmarks() {
     setSubHeader("Construct SBO");
     bench_construct_sbo();
     std::cout << "\n";
@@ -271,6 +269,6 @@ void run_move_only_function_benchmarks() {
 
     setSubHeader("Reset Heap");
     bench_reset_heap();
-    borderLine();
-    std::cout << "\n";
 }
+
+REGISTER_BENCH_SUITE();
