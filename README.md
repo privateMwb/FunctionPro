@@ -1,298 +1,145 @@
 # FunctionPro
 
-[![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)](https://en.cppreference.com/w/cpp/17)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-blue)](https://en.cppreference.com/w/cpp/23)
 [![Status](https://img.shields.io/badge/status-learning%20project-green)](https://github.com/privateMwb/FunctionPro)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A custom C++ callable wrapper library built for learning type erasure, small buffer optimization, and vtable-based dispatch — featuring three wrapper classes with distinct ownership models.
+**FunctionPro** is a from-scratch C++23 callable wrapper library built as a deep dive into type erasure, small buffer optimization, and performance benchmarking against the standard library.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
-- [Motivation / Goals](#motivation--goals)
+- [Motivation](#motivation)
 - [Features](#features)
-- [Design Overview](#design-overview)
-  - [Internal Structure](#internal-structure)
-  - [SBO Strategy](#sbo-strategy)
-  - [Vtable Dispatch](#vtable-dispatch)
-  - [Ownership Models](#ownership-models)
-  - [Exception Safety Model](#exception-safety-model)
-  - [Design Philosophy](#design-philosophy)
-- [Complexity](#complexity)
-  - [Time Complexity](#time-complexity)
-  - [Space Complexity](#space-complexity)
-- [Quick Example](#quick-example)
-  - [Function](#function-example)
-  - [MoveOnlyFunction](#moveonlyfunction-example)
-  - [FunctionRef](#functionref-example)
+- [Quick Start](#quick-start)
 - [Core API](#core-api)
-  - [Function](#function)
-  - [MoveOnlyFunction](#moveonlyfunction)
-  - [FunctionRef](#functionref)
-- [Benchmark Results](#benchmark-results)
-  - [Function — Construction](#function--construction)
-  - [Function — Invocation](#function--invocation)
-  - [Function — Copy & Move](#function--copy--move)
-  - [MoveOnlyFunction — Construction](#moveonlyfunction--construction)
-  - [MoveOnlyFunction — Invocation](#moveonlyfunction--invocation)
-  - [MoveOnlyFunction — Move](#moveonlyfunction--move)
-  - [FunctionRef — Construction](#functionref--construction)
-  - [FunctionRef — Invocation](#functionref--invocation)
-  - [FunctionRef — Copy & Rebind](#functionref--copy--rebind)
-  - [Summary](#summary)
+- [Design Overview](#design-overview)
+- [Complexity](#complexity)
+- [Benchmarks](#benchmarks)
 - [Project Structure](#project-structure)
-- [Build Instructions](#build-instructions)
-- [Notes](#notes)
-- [Contributing](#contributing)
+- [Building from Source](#building-from-source)
+- [Known Limitations](#known-limitations)
 - [License](#license)
 
 ---
 
 ## Overview
 
-FunctionPro is a `std::function`-like callable wrapper library implemented from scratch in modern C++ (C++23).  
-It focuses on understanding how type erasure works internally, including SBO, vtable dispatch, and ownership semantics.
+FunctionPro provides three callable wrapper types implemented from scratch:
 
-It includes three wrapper classes:
+- `Function<R(Args...)>` — a copyable, owning callable wrapper (similar to `std::function`)
+- `MoveOnlyFunction<R(Args...)>` — a move-only, owning callable wrapper (similar to `std::move_only_function`)
+- `FunctionRef<R(Args...)>` — a non-owning, non-allocating callable view (similar to `std::function_ref`)
 
-- `Function` — copyable and movable callable wrapper with SBO
-- `MoveOnlyFunction` — move-only callable wrapper with SBO, supports non-copyable callables
-- `FunctionRef` — non-owning, non-allocating view of a callable
-
-It also includes:
-
-- Vtable-based type erasure via `VTableFactory`
-- Small Buffer Optimization (SBO) with heap fallback
-- Benchmark suite comparing against `std::function`
-- Unit tests for correctness validation
+All three are built on a shared type-erasure foundation using a custom `VTable`, `VTableFactory`, and `CallableStorage` layer with Small Buffer Optimization (SBO).
 
 ---
 
-## Motivation / Goals
+## Motivation
 
 This project was built to understand:
 
-- Type erasure via vtables and function pointers
-- Small Buffer Optimization (SBO) to avoid heap allocation
-- Rule of 5 (copy/move semantics) in generic wrappers
-- Ownership models — owning vs non-owning callables
-- SFINAE-based constructor constraints with `enable_if_t`
-- Performance benchmarking vs `std::function`
+- Type erasure and vtable-based dispatch without virtual functions
+- Small Buffer Optimization to avoid heap allocation for small callables
+- The difference between owning and non-owning callable abstractions
+- Correct copy, move, and destruction semantics for type-erased storage
+- Performance characteristics compared to `std::function`
+- Portability across GCC, Clang, and MSVC
 
 ---
 
 ## Features
 
-- Wraps free functions, lambdas, capturing lambdas, and callable objects
-- Small Buffer Optimization — avoids heap allocation for small callables
-- Heap fallback for large callables
-- `Function` — full copy and move support
-- `MoveOnlyFunction` — move-only, supports `unique_ptr` captures and non-copyable types
-- `FunctionRef` — zero allocation, non-owning, rebindable
-- `operator bool` for empty state checks
-- `reset()` to clear stored callable
-- `operator==` / `operator!=` with `nullptr`
-- `std::bad_function_call` on invocation of empty wrapper
+| Feature | Description |
+|---|---|
+| Small Buffer Optimization | 32-byte inline buffer — most lambdas and functors require no heap allocation |
+| Transparent heap fallback | Callables exceeding SBO capacity allocate on the heap automatically |
+| `Function` | Copyable, owning wrapper — requires copy-constructible callables |
+| `MoveOnlyFunction` | Move-only, owning wrapper — accepts move-only callables (e.g. `unique_ptr` captures) |
+| `FunctionRef` | Non-owning, non-allocating view — 16-byte object size |
+| Compile-time lvalue enforcement | `FunctionRef`'s constructor accepts only lvalues; rvalue binding is rejected at compile time to prevent dangling pointers |
+| Shared vtable per type | `static constexpr` vtable shared across instances of the same callable type — no per-instance allocation |
+| `swap` support | Member and free `swap` for all three types |
+| State management | `reset()` and `operator bool` for all three types |
+| Null comparison | `operator==` / `operator!=` against `nullptr` |
+| Cross-compiler constraints | Concepts-based constraints with `std::enable_if_t` fallback for Clang compatibility |
+| Verified portability | Tested on GCC, Clang, and MSVC |
 
 ---
 
-## Design Overview
+## Quick Start
 
-FunctionPro uses a shared `Storage` struct with an SBO buffer and a heap pointer, combined with a vtable of function pointers for type-erased operations.
-
-### Internal Structure
-
-```
-Storage
-  ├── buffer[32]   ← SBO region (stack-allocated)
-  └── heap*        ← heap pointer (null if SBO used)
-
-VTable<R, Args...>
-  ├── invoke(void*, Args&&...)
-  ├── copy(void*, const void*)
-  ├── move(void*, void*, bool)
-  └── destroy(void*)
-```
-
-- `buffer` → 32-byte aligned stack region for small callables
-- `heap` → heap pointer, null when SBO is active
-- `vtable_` → pointer to a static `VTable` instance for the stored type
-
-### SBO Strategy
-
-When a callable fits within the SBO buffer:
+### Function
 
 ```cpp
-sizeof(T)  <= Storage::SBO_SIZE      // 32 bytes
-alignof(T) <= Storage::SBO_ALIGNMENT //  8 bytes
-```
-
-The callable is constructed directly into the buffer with placement new — no heap allocation occurs.  
-Otherwise, the callable is heap-allocated and the pointer is stored in `Storage::heap`.
-
-```
-Small callable  →  buffer[32]     (no allocation)
-Large callable  →  new T(...)     (heap fallback)
-```
-
-### Vtable Dispatch
-
-Each wrapper holds a pointer to a `VTable` populated by `VTableFactory`:
-
-```cpp
-static const VTable<R, Args...>* get() noexcept {
-    static constexpr VTable<R, Args...> vtable {
-        &invoke, &copy, &move, &destroy
-    };
-    return &vtable;
-}
-```
-
-The vtable is a static constexpr instance — shared across all wrappers holding the same type.  
-`MoveOnlyFunction` uses `getMoveOnly()` which sets `copy` to `nullptr`, preventing accidental copies.
-
-### Ownership Models
-
-| Class              | Owns Callable | Copyable | Movable | Allocates |
-| ------------------ | ------------- | -------- | ------- | --------- |
-| `Function`         | Yes           | Yes      | Yes     | Heap fallback |
-| `MoveOnlyFunction` | Yes           | No       | Yes     | Heap fallback |
-| `FunctionRef`      | No            | Yes      | Yes     | Never     |
-
-`FunctionRef` stores only two pointers — the callable address and the invoke function pointer.  
-It never allocates and the caller is responsible for ensuring the callable outlives the ref.
-
-### Exception Safety Model
-
-- Strong safety in copy and move operations
-- `std::bad_function_call` thrown on invocation of an empty wrapper
-- Bounds and null checks via `operator bool` and `== nullptr`
-- No memory leaks on destruction — `destroy` always called via vtable
-
-### Design Philosophy
-
-FunctionPro prioritizes:
-
-- Learning type erasure internals
-- Explicit control over allocation
-- Performance awareness via SBO
-- Minimal abstraction over raw vtable dispatch
-- Understanding how `std::function` works under the hood
-
----
-
-## Complexity
-
-### Time Complexity
-
-| Operation             | Function | MoveOnlyFunction | FunctionRef | Notes                          |
-| --------------------- | -------- | ---------------- | ----------- | ------------------------------ |
-| Construct (SBO)       | O(1)     | O(1)             | O(1)        | Placement new into buffer      |
-| Construct (heap)      | O(1)     | O(1)             | —           | Single heap allocation         |
-| Invoke                | O(1)     | O(1)             | O(1)        | One vtable/pointer indirection |
-| Copy construct (SBO)  | O(1)     | —                | O(1)        | Copy into buffer               |
-| Copy construct (heap) | O(1)     | —                | —           | Single heap allocation         |
-| Move construct        | O(1)     | O(1)             | O(1)        | Pointer transfer               |
-| Reset / Destroy       | O(1)     | O(1)             | O(1)        | Single destroy call            |
-
-### Space Complexity
-
-- `Function` / `MoveOnlyFunction`: O(1) — fixed 32-byte SBO buffer + heap pointer + vtable pointer
-- `FunctionRef`: O(1) — two pointers only, no buffer
-
----
-
-## Quick Example
-
-### Function Example
-
-```cpp
-#include "function/Function.h"
-#include <iostream>
+#include <FunctionPro/Function.h>
 
 using namespace FunctionPro;
 
 int add(int a, int b) { return a + b; }
 
 int main() {
-    // free function
     Function<int(int, int)> f(add);
-    std::cout << f(2, 3) << "\n"; // 5
+    f(3, 4);   // 7
 
-    // lambda
-    Function<int(int)> doubler([](int x) { return x * 2; });
-    std::cout << doubler(5) << "\n"; // 10
+    int bias = 10;
+    Function<int(int)> g([bias](int x) { return x + bias; });
+    g(5);      // 15
 
-    // copy
-    Function<int(int)> copy(doubler);
-    std::cout << copy(6) << "\n"; // 12
-
-    // move
-    Function<int(int)> moved(std::move(doubler));
-    std::cout << moved(7) << "\n";           // 14
-    std::cout << (doubler == nullptr) << "\n"; // 1
-
-    // reset
-    f.reset();
-    std::cout << (f == nullptr) << "\n"; // 1
-
-    return 0;
+    Function<int(int, int)> h(f);   // copy
+    Function<int(int, int)> k(std::move(f));   // move
 }
 ```
 
-### MoveOnlyFunction Example
+### MoveOnlyFunction
 
 ```cpp
-#include "function/MoveOnlyFunction.h"
-#include <iostream>
+#include <FunctionPro/MoveOnlyFunction.h>
+
 #include <memory>
 
 using namespace FunctionPro;
 
 int main() {
-    // move-only callable (unique_ptr capture)
-    auto ptr = std::make_unique<int>(99);
+    auto ptr = std::make_unique<int>(42);
+
     MoveOnlyFunction<int()> f([p = std::move(ptr)]() { return *p; });
-    std::cout << f() << "\n"; // 99
+    f();   // 42
 
-    // move
-    MoveOnlyFunction<int()> moved(std::move(f));
-    std::cout << moved() << "\n";         // 99
-    std::cout << (f == nullptr) << "\n";  // 1
-
-    return 0;
+    MoveOnlyFunction<int()> g(std::move(f));   // move
+    g();   // 42
 }
 ```
 
-### FunctionRef Example
+### FunctionRef
 
 ```cpp
-#include "function/FunctionRef.h"
-#include <iostream>
+#include <FunctionPro/FunctionRef.h>
 
 using namespace FunctionPro;
 
 int add(int a, int b) { return a + b; }
 
 int main() {
-    // free function — no allocation
-    FunctionRef<int(int, int)> ref(add);
-    std::cout << ref(2, 3) << "\n"; // 5
+    auto lam = [](int a, int b) { return a + b; };
 
-    // lambda — must outlive the ref
-    auto lam = [](int x) { return x * 4; };
-    FunctionRef<int(int)> ref2(lam);
-    std::cout << ref2(3) << "\n"; // 12
+    FunctionRef<int(int, int)> ref(lam);    // bind to lambda
+    ref(3, 4);   // 7
 
-    // rebind
-    auto lam2 = [](int x) { return x + 10; };
-    ref2 = FunctionRef<int(int)>(lam2);
-    std::cout << ref2(3) << "\n"; // 13
-
-    return 0;
+    FunctionRef<int(int, int)> ref2(add);   // bind to free function
+    ref2(3, 4);  // 7
 }
+```
+
+### Swap
+
+```cpp
+Function<int(int, int)> a(add);
+Function<int(int, int)> b([](int x, int y) { return x * y; });
+a.swap(b);
+swap(a, b);   // free swap
 ```
 
 ---
@@ -302,194 +149,366 @@ int main() {
 ### Function
 
 ```cpp
-// Constructors & Destructor
-Function();
-Function(std::nullptr_t) noexcept;
+Function()                noexcept;
+Function(std::nullptr_t)  noexcept;
 
 template<typename T>
-Function(T&& callable);
+Function(T&& callable);          // requires copy-constructible T
+
+Function(const Function&);
+Function& operator=(const Function&);
+Function(Function&&)              noexcept;
+Function& operator=(Function&&)   noexcept;
 
 ~Function();
 
-Function(const Function& other);
-Function& operator=(const Function& other);
-
-Function(Function&& other) noexcept;
-Function& operator=(Function&& other) noexcept;
-
-// Invocation
 R operator()(Args... args) const;
 
-// State
-explicit operator bool() const noexcept;
-void reset() noexcept;
+[[nodiscard]] explicit operator bool() const noexcept;
+void reset()                             noexcept;
+void swap(Function&)                     noexcept;
 
-// Equality
-bool operator==(std::nullptr_t) const noexcept;
-bool operator!=(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
 ```
 
 ### MoveOnlyFunction
 
 ```cpp
-// Constructors & Destructor
-MoveOnlyFunction();
-MoveOnlyFunction(std::nullptr_t) noexcept;
+MoveOnlyFunction()                noexcept;
+MoveOnlyFunction(std::nullptr_t)  noexcept;
 
 template<typename T>
-MoveOnlyFunction(T&& callable);
-
-~MoveOnlyFunction();
+MoveOnlyFunction(T&& callable);   // accepts move-only callables
 
 MoveOnlyFunction(const MoveOnlyFunction&)            = delete;
 MoveOnlyFunction& operator=(const MoveOnlyFunction&) = delete;
+MoveOnlyFunction(MoveOnlyFunction&&)                  noexcept;
+MoveOnlyFunction& operator=(MoveOnlyFunction&&)       noexcept;
 
-MoveOnlyFunction(MoveOnlyFunction&& other) noexcept;
-MoveOnlyFunction& operator=(MoveOnlyFunction&& other) noexcept;
+~MoveOnlyFunction();
 
-// Invocation
-R operator()(Args... args) const;
+R operator()(Args... args);       // non-const
 
-// State
-explicit operator bool() const noexcept;
-void reset() noexcept;
+[[nodiscard]] explicit operator bool() const noexcept;
+void reset()                             noexcept;
+void swap(MoveOnlyFunction&)             noexcept;
 
-// Equality
-bool operator==(std::nullptr_t) const noexcept;
-bool operator!=(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
 ```
 
 ### FunctionRef
 
 ```cpp
-// Constructors & Destructor
-FunctionRef() noexcept;
+FunctionRef()               noexcept;
 
 template<typename T>
-FunctionRef(T&& callable) noexcept;
-
-~FunctionRef() = default;
+FunctionRef(T& callable)    noexcept;   // lvalue only — no rvalue binding
 
 FunctionRef(const FunctionRef&)            = default;
 FunctionRef& operator=(const FunctionRef&) = default;
+FunctionRef(FunctionRef&&)                  noexcept = default;
+FunctionRef& operator=(FunctionRef&&)       noexcept = default;
 
-FunctionRef(FunctionRef&&) noexcept            = default;
-FunctionRef& operator=(FunctionRef&&) noexcept = default;
-
-// Invocation
 R operator()(Args... args) const;
 
-// State
-explicit operator bool() const noexcept;
+[[nodiscard]] explicit operator bool() const noexcept;
 
-// Equality
-bool operator==(std::nullptr_t) const noexcept;
-bool operator!=(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator==(std::nullptr_t) const noexcept;
+[[nodiscard]] bool operator!=(std::nullptr_t) const noexcept;
 ```
 
 ---
 
-## Benchmark Results
+## Design Overview
 
-Benchmarks compare `Function`, `MoveOnlyFunction`, and `FunctionRef` against `std::function` across core operations.
-All times measured in nanoseconds (ns).
+### CallableStorage
 
-> Results may vary depending on compiler optimizations and hardware.
-> Compiled with `-O2`.
+`CallableStorage` is the shared storage layer used by `Function` and `MoveOnlyFunction`. It holds either an inline SBO buffer or a heap pointer, and exposes three distinct accessors:
 
-### Function — Construction
+```
++--------------------------+
+|  buffer[32]              |  <- inline storage (32 bytes, aligned to 8)
+|  void* heap              |  <- heap pointer (null when using SBO)
++--------------------------+
+```
 
-| Operation                  | Function   | std::function | Speedup  |
-| -------------------------- | ---------- | ------------- | -------- |
-| Construct SBO              | 38.22 ns   | 66.02 ns      | ~1.73×   |
-| Construct heap             | 531.65 ns  | 825.14 ns     | ~1.55×   |
+| Accessor | Job |
+|---|---|
+| `data()` | Address of the active callable (inline or heap) |
+| `inlineSlot()` | Address of the SBO buffer (for placement new) |
+| `heapSlot()` | Address of the heap pointer (for ownership transfer) |
 
-### Function — Invocation
+### VTable
 
-| Operation                  | Function   | std::function | Speedup  |
-| -------------------------- | ---------- | ------------- | -------- |
-| Invoke free function       | 26.13 ns   | 40.25 ns      | ~1.54×   |
-| Invoke SBO callable        | 25.17 ns   | 40.74 ns      | ~1.62×   |
-| Invoke heap callable       | 28.78 ns   | 46.05 ns      | ~1.60×   |
+Each callable type gets one `static constexpr VTable` instance shared across all wrappers holding that type. The vtable holds four function pointers:
 
-### Function — Copy & Move
+```cpp
+struct VTable {
+    R    (*invoke) (CallableStorage&, Args&&...);
+    void (*copy)   (CallableStorage&, const CallableStorage&);
+    void (*move)   (CallableStorage&, CallableStorage&);
+    void (*destroy)(CallableStorage&);
+};
+```
 
-| Operation                  | Function   | std::function | Speedup  |
-| -------------------------- | ---------- | ------------- | -------- |
-| Copy                       | 64.21 ns   | 60.55 ns      | ~0.94×   |
-| Move                       | 96.15 ns   | 130.67 ns     | ~1.36×   |
+`MoveOnlyFunction` sets `copy` to `nullptr` — it is never called since copy operations are deleted.
 
-`Function` copy is marginally slower than `std::function` — within noise range. Move is ~1.4× faster.
+### SBO decision
 
----
+`SBOTraits<T>::fits` is a compile-time constant evaluated once per callable type `T`:
 
-### MoveOnlyFunction — Construction
+```cpp
+sizeof(T)  <= 32 &&
+alignof(T) <= 8
+```
 
-| Operation                      | MoveOnlyFunction | std::function | Speedup  |
-| ------------------------------ | ---------------- | ------------- | -------- |
-| Construct SBO                  | 38.85 ns         | 68.84 ns      | ~1.77×   |
-| Construct heap                 | 580.41 ns        | 701.50 ns     | ~1.21×   |
+All `if constexpr (SBOTraits<T>::fits)` branches in `VTableFactory` are resolved at compile time — there is no runtime branching per invocation to determine storage location.
 
-### MoveOnlyFunction — Invocation
+### FunctionRef
 
-| Operation                      | MoveOnlyFunction | std::function | Speedup  |
-| ------------------------------ | ---------------- | ------------- | -------- |
-| Invoke free function           | 22.49 ns         | 34.85 ns      | ~1.55×   |
-| Invoke SBO callable            | 21.40 ns         | 35.29 ns      | ~1.65×   |
-| Invoke heap callable           | 23.46 ns         | 42.04 ns      | ~1.79×   |
-| Invoke move-only callable      | 25.77 ns         | —             | —        |
+`FunctionRef` does not use `CallableStorage` or `VTableFactory`. It stores two members:
 
-### MoveOnlyFunction — Move
+```
++-----------------------------------+
+|  PtrStorage ptr_                  |  8 bytes (union: object ptr or fn ptr)
++-----------------------------------+
+|  R (*invoke_)(PtrStorage, Args&&) |  8 bytes (function pointer thunk)
++-----------------------------------+
+```
 
-| Operation                      | MoveOnlyFunction | std::function | Speedup  |
-| ------------------------------ | ---------------- | ------------- | -------- |
-| Move SBO                       | 100.35 ns        | 142.46 ns     | ~1.42×   |
-| Move heap                      | 774.13 ns        | 849.61 ns     | ~1.10×   |
+Total: 16 bytes. No allocation, no vtable, no ownership.
 
-`MoveOnlyFunction` consistently outperforms `std::function` on invocation — up to **1.79×** faster on heap callables.
+A `union { void* obj; void (*fn)(); }` is used for storage because `void*` cannot portably hold a function pointer. The correct union member is selected at construction time based on whether `T` is a function type or a callable object.
 
----
+### Owning wrapper layout
 
-### FunctionRef — Construction
+```
++-----------------------------------+
+|  const VTable<R,Args...>* vtable_ |  8 bytes
++-----------------------------------+
+|  CallableStorage storage_         |  40 bytes (32 buffer + 8 heap ptr)
++-----------------------------------+
+```
 
-| Operation                      | FunctionRef  | Notes                        |
-| ------------------------------ | ------------ | ---------------------------- |
-| Construct from lambda          | 17.48 ns     | Two pointer stores only      |
-| Construct from free function   | 18.94 ns     | Two pointer stores only      |
-
-### FunctionRef — Invocation
-
-| Operation                      | FunctionRef  | std::function | raw pointer | Speedup vs std |
-| ------------------------------ | ------------ | ------------- | ----------- | -------------- |
-| Invoke free function           | 21.66 ns     | 38.43 ns      | 6.93 ns     | ~1.77×         |
-| Invoke SBO callable            | 27.94 ns     | 39.25 ns      | —           | ~1.40×         |
-| Invoke void return             | 21.34 ns     | 49.34 ns      | —           | ~2.31×         |
-
-### FunctionRef — Copy & Rebind
-
-| Operation                      | FunctionRef  | Notes                        |
-| ------------------------------ | ------------ | ---------------------------- |
-| Copy                           | 4.75 ns      | Two pointer copies only      |
-| Rebind                         | 20.86 ns     | Reassign to new callable     |
-
-`FunctionRef` copy at **4.75 ns** is the cheapest operation in the entire library — just two pointer copies, no allocation, no vtable lookup.
+Total: 48 bytes. `vtable_ == nullptr` is the canonical empty state.
 
 ---
 
-### Summary
+## Complexity
 
-| Operation                      | Winner           | Notes                                         |
-| ------------------------------ | ---------------- | --------------------------------------------- |
-| Construct SBO                  | FunctionPro      | ~1.7× faster                                  |
-| Construct heap                 | FunctionPro      | ~1.2–1.6× faster                              |
-| Invoke free function           | FunctionPro      | ~1.5–1.8× faster                              |
-| Invoke SBO callable            | FunctionPro      | ~1.6× faster                                  |
-| Invoke heap callable           | FunctionPro      | ~1.6–1.8× faster                              |
-| Invoke void return             | FunctionRef      | ~2.3× faster than std::function               |
-| Copy (Function)                | std::function    | Marginally faster; within noise range          |
-| Copy (FunctionRef)             | FunctionRef      | 4.75 ns — two pointer copies only             |
-| Move                           | FunctionPro      | ~1.1–1.4× faster                              |
-| Raw pointer vs FunctionRef     | raw pointer      | 6.93 ns vs 21.66 ns — cost of indirection     |
+### Time complexity
+
+| Operation | Complexity | Notes |
+|---|---|---|
+| Construction (SBO) | O(1) | Placement construction into inline buffer |
+| Construction (heap) | O(1) | Single heap allocation + construction |
+| Invocation | O(1) | One indirect function pointer call |
+| Copy (SBO) | O(1) | Placement copy-construction into inline buffer |
+| Copy (heap) | O(1) | Single heap allocation + copy-construction |
+| Move (SBO) | O(1) | Placement move-construction into inline buffer |
+| Move (heap) | O(1) | Pointer transfer — no allocation |
+| Destruction (SBO) | O(1) | Destructor call only |
+| Destruction (heap) | O(1) | Destructor + single heap deallocation |
+| `reset()` | O(1) | Destroy + null vtable and heap pointer |
+| `operator bool` | O(1) | Null vtable check |
+| `FunctionRef` construction | O(1) | Address capture only — no allocation |
+| `FunctionRef` invocation | O(1) | One indirect function pointer call |
+
+### Space complexity
+
+| Type | Size | Notes |
+|---|---|---|
+| `Function` | 48 bytes | 8 vtable ptr + 32 buffer + 8 heap ptr |
+| `MoveOnlyFunction` | 48 bytes | Same layout as `Function` |
+| `FunctionRef` | 16 bytes | 8 ptr union + 8 thunk ptr |
+
+---
+
+## Benchmarks
+
+Benchmarks compare `Function`, `MoveOnlyFunction`, and `FunctionRef` against `std::function` across construction, invocation, copy, and move operations.
+
+> Compiled with `-std=c++23`. Results may vary depending on hardware and compiler optimizations.
+
+<details>
+<summary>Show benchmark results</summary>
+
+#### Function
+
+```
+----------------------------------------------------------------------
+Function Benchmarks                     Time           Iteration
+----------------------------------------------------------------------
+Construct SBO
+Function Construct SBO                  4.02 ms         500000
+Std::function Construct SBO             4.77 ms         500000
+
+Construct Heap
+Function Construct Heap                 97.48 ms        500000
+Std::function Construct Heap            64.48 ms        500000
+
+Invoke Free Function
+Function Invoke Free                    3.71 ms         1000000
+Std::function Invoke Free               4.23 ms         1000000
+
+Invoke SBO
+Function Invoke SBO                     4.23 ms         1000000
+Std::function Invoke SBO                3.92 ms         1000000
+
+Invoke Heap
+Function Invoke Heap                    3.18 ms         1000000
+Std::function Invoke Heap               3.71 ms         1000000
+
+Copy SBO
+Function Copy SBO                       4.37 ms         500000
+Std::function Copy SBO                  4.77 ms         500000
+
+Copy Heap
+Function Copy Heap                      163.58 ms       500000
+Std::function Copy Heap                 69.32 ms        500000
+
+Move SBO
+Function Move SBO                       3.97 ms         500000
+Std::function Move SBO                  6.60 ms         500000
+
+Move Heap
+Function Move Heap                      63.79 ms        500000
+Std::function Move Heap                 64.30 ms        500000
+
+MoveOnlyFunction Vs Function
+MoveOnlyFunction Move SBO               3.97 ms         500000
+Function Move SBO                       3.96 ms         500000
+
+FunctionRef Vs Function Vs Std::function
+FunctionRef Invoke                      539.77 us       1000000
+Function Invoke                         4.23 ms         1000000
+Std::function Invoke                    4.02 ms         1000000
+----------------------------------------------------------------------
+```
+
+#### MoveOnlyFunction
+
+```
+----------------------------------------------------------------------
+MoveOnlyFunction Benchmarks             Time           Iteration
+----------------------------------------------------------------------
+Construct SBO
+MoveOnlyFunction Construct SBO          4.03 ms         500000
+Function Construct SBO                  3.97 ms         500000
+
+Construct Heap
+MoveOnlyFunction Construct Heap         63.35 ms        500000
+Function Construct Heap                 63.36 ms        500000
+
+Construct Move-Only Callable
+Construct Unique Ptr Capture            63.20 ms        500000
+
+Invoke Free Function
+MoveOnlyFunction Invoke Free            3.73 ms         1000000
+Function Invoke Free                    3.89 ms         1000000
+
+Invoke SBO
+MoveOnlyFunction Invoke SBO             4.23 ms         1000000
+Function Invoke SBO                     3.70 ms         1000000
+
+Invoke Heap
+MoveOnlyFunction Invoke Heap            3.18 ms         1000000
+Function Invoke Heap                    3.76 ms         1000000
+
+Invoke Move-Only Callable
+Invoke Move-only Capture                3.72 ms         1000000
+
+Move SBO
+MoveOnlyFunction Move SBO               3.97 ms         500000
+Function Move SBO                       3.97 ms         500000
+
+Move Heap
+MoveOnlyFunction Move Heap              64.12 ms        500000
+Function Move Heap                      63.98 ms        500000
+
+Move Unique Ptr Capture
+Move Unique Ptr Capture                 120.83 ms       500000
+
+Reset SBO
+MoveOnlyFunction Reset SBO              2.35 ms         500000
+Function Reset SBO                      1.84 ms         500000
+
+Reset Heap
+MoveOnlyFunction Reset Heap             3.17 ms         500000
+Function Reset Heap                     3.17 ms         500000
+----------------------------------------------------------------------
+```
+
+#### FunctionRef
+
+```
+----------------------------------------------------------------------
+FunctionRef Benchmarks                  Time           Iteration
+----------------------------------------------------------------------
+Construct Functor
+FunctionRef Construct                   1.05 ms         1000000
+Function Construct                      7.92 ms         1000000
+Std::function Construct                 9.06 ms         1000000
+
+Construct Free Function
+FunctionRef Construct Free Function     1.07 ms         1000000
+Function Construct Free Function        7.94 ms         1000000
+Std::function Construct Free Function   10.55 ms        1000000
+
+Invoke Functor
+FunctionRef Invoke Functor              526.38 us       1000000
+Function Invoke Functor                 3.71 ms         1000000
+Std::function Invoke Functor            4.23 ms         1000000
+
+Invoke Free Function
+FunctionRef Invoke Free Function        526.38 us       1000000
+Function Invoke Free Function           4.24 ms         1000000
+Std::function Invoke Free Function      4.54 ms         1000000
+
+Invoke Lambda
+FunctionRef Invoke Lambda               526.46 us       1000000
+Function Invoke Lambda                  3.70 ms         1000000
+Std::function Invoke Lambda             4.39 ms         1000000
+
+Copy
+FunctionRef Copy                        1.05 ms         1000000
+
+Rebind Vs Reassign
+FunctionRef Rebind                      526.46 us       1000000
+Function Reassign                       7.92 ms         1000000
+
+Pass By Value
+FunctionRef Pass By Value               1.05 ms         1000000
+----------------------------------------------------------------------
+```
+
+#### Summary
+
+`Function` matches or outperforms `std::function` on invocation and SBO operations. Heap copy is slower than `std::function` — this is an expected tradeoff of a simpler allocator strategy without the small-allocator optimizations some standard library implementations apply.
+
+`MoveOnlyFunction` is identical in performance to `Function` for all move and invocation operations, with no overhead from the deleted copy path.
+
+`FunctionRef` is the standout: construction is 7-9x faster than `Function` or `std::function`, and invocation is roughly 7-8x faster — down to ~526 ns per million calls vs ~4 ms — due to eliminating the vtable indirection and null check on the hot invocation path.
+
+| Category | Winner | Notes |
+|---|---|---|
+| SBO construction | Function | Comparable to std::function |
+| Heap construction | std::function | std::function uses optimized allocator on some impls |
+| Invoke (all types) | FunctionRef | ~7x faster — no vtable, no null check |
+| SBO copy | Function | Comparable to std::function |
+| Heap copy | std::function | Same reason as heap construction |
+| SBO move | Function | 1.66x faster than std::function |
+| Heap move | Tie | Pointer transfer cost is identical |
+| Construction (ref) | FunctionRef | 7-9x faster — address capture only |
+| Rebind vs reassign | FunctionRef | 15x faster — no allocation or destruction |
+
+**Use `Function` when:** you need a copyable callable with ownership and SBO.
+**Use `MoveOnlyFunction` when:** your callable captures move-only types like `unique_ptr`.
+**Use `FunctionRef` when:** you need to pass a callable by reference with zero overhead and can guarantee the callable's lifetime.
+
+</details>
 
 ---
 
@@ -498,100 +517,87 @@ All times measured in nanoseconds (ns).
 ```
 FunctionPro/
 ├── include/
-│   ├── function/
-│   │   ├── Function.h
-│   │   ├── Function.tpp
-│   │   ├── MoveOnlyFunction.h
-│   │   ├── MoveOnlyFunction.tpp
-│   │   ├── FunctionRef.h
-│   │   └── FunctionRef.tpp
-│   └── detail/
-│       ├── Storage.h
-│       ├── SBOTraits.h
-│       ├── VTable.h
-│       └── VTableFactory.h
+│   └── FunctionPro/
+│       ├── Function.h
+│       ├── Function.tpp
+│       ├── MoveOnlyFunction.h
+│       ├── MoveOnlyFunction.tpp
+│       ├── FunctionRef.h
+│       ├── FunctionRef.tpp
+│       └── Detail/
 │
 ├── tests/
-│   ├── test_helper.h
-│   ├── test_function.cpp
-│   ├── test_move_only_function.cpp
-│   ├── test_function_ref.cpp
-│   └── test_all.cpp
-│
 ├── benchmarks/
-│   ├── benchmark_helper.h
-│   ├── benchmark_function.cpp
-│   ├── benchmark_move_only_function.cpp
-│   ├── benchmark_function_ref.cpp
-│   └── benchmark_all.cpp
-│
 ├── examples/
-│   ├── example_function.cpp
-│   ├── example_move_only_function.cpp
-│   ├── example_function_ref.cpp
-│   └── example_all.cpp
 │
+├── cmake/
+│   └── FunctionProConfig.cmake.in
+│
+├── docs/
+│   └── Architecture.md
+│
+├── .gitignore
+├── CMakeLists.txt
 ├── README.md
 └── LICENSE
 ```
 
 ---
 
-## Build Instructions
+## Building from Source
 
 ### Requirements
 
-- C++23-compatible compiler: GCC 13+, Clang 17+, or MSVC 19.38+
-- No external dependencies — header-only core library
+- GCC 13+ or Clang with C++23 support
+- CMake 3.20+
 
-### Compile & Run Tests
+### Build
 
 ```bash
-g++ -std=c++23 tests/*.cpp -Iinclude -o testsResult
-./testsResult
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build .
 ```
 
-### Compile & Run Benchmarks
+### Run tests
 
 ```bash
-g++ -std=c++23 -O2 benchmarks/*.cpp -Iinclude -o benchmarksResult
-./benchmarkResult
+./tests              # run all test suites
+./tests list          # list available suites
+./tests 1             # run by number
+./tests constructor   # run by name
 ```
 
-> Use `-O2` or `-O3` for meaningful benchmark results. Debug builds distort timing significantly.
-
-### Compile & Run Examples
+### Run benchmarks
 
 ```bash
-g++ -std=c++23 examples/*.cpp -Iinclude -o examplesResult
-./examplesResult
+./benchmarks           # run all benchmark suites
+./benchmarks list       # list available suites
+./benchmarks 1          # run by number
+./benchmarks put        # run by name
+```
+
+### Run examples
+
+```bash
+./examples              # run all examples
+./examples list          # list available examples
+./examples 1             # run by number
+./examples basic_usage   # run by name
 ```
 
 ---
 
-## Notes
+## Known Limitations
 
-- **Not production-ready.** This is an educational project — use `std::function` in real codebases.
-- `FunctionRef` does not own the callable — the caller must ensure the callable outlives the ref.
-- `MoveOnlyFunction` explicitly deletes copy construction and copy assignment.
-- The SBO buffer is 32 bytes with 8-byte alignment — callables exceeding this fall back to heap.
-- Exception safety is handled for core operations but may not match full STL guarantees in all edge cases.
-- Iterator invalidation does not apply — these are non-container types.
-
----
-
-## Contributing
-
-Contributions, improvements, and learning-focused PRs are welcome! Some areas worth exploring:
-
-- Allocator support for heap fallback
-- `constexpr` callable support
-- `noexcept` propagation from wrapped callable
-- CMake build system integration
-- CI pipeline (GitHub Actions)
+- **`FunctionRef` does not own the callable it wraps.** The referenced object must outlive the `FunctionRef`; binding to a temporary is rejected at compile time, but a dangling reference is still possible if the underlying callable is destroyed while a `FunctionRef` to it is still in use.
+- **`Function` requires copy-constructible callables.** Move-only callables (e.g. those capturing a `unique_ptr`) must use `MoveOnlyFunction` instead.
+- **Heap-path construction and copy are slower than `std::function`** (e.g. `Function Construct Heap`: `97.48 ms` vs `64.48 ms`; `Function Copy Heap`: `163.58 ms` vs `69.32 ms`, both at 500,000 iterations) — some standard library implementations apply small-allocator optimizations that this project's simpler heap allocation strategy doesn't replicate. See [Benchmarks](#benchmarks).
+- **`MoveOnlyFunction::operator()` is non-`const`**, while `Function::operator()` is `const`-qualified — this intentionally matches `std::move_only_function` and `std::function` semantics respectively, but means the two types aren't drop-in interchangeable in const contexts.
 
 ---
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and distribute for educational and personal purposes.
+Licensed under the [MIT License](LICENSE) — free to use, modify, and distribute for educational and personal purposes.
+
