@@ -1,38 +1,46 @@
 #pragma once
 
+#include "helper.h"
+
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <cctype>
 
 struct ExampleSuite {
-    int id;
+    std::string id;
+    std::string category;
     std::string name;
     void (*run)();
 };
 
-// Function-local static avoids the static initialization order fiasco:
-// registrars in other translation units run before main() and need a
-// guaranteed-initialized registry to register into.
-inline std::vector<ExampleSuite>& example_registry()
-{
+inline std::vector<ExampleSuite>& example_registry() {
     static std::vector<ExampleSuite> registry;
     return registry;
 }
 
-inline int& next_example_suite_id()
-{
-    static int id = 1;
-    return id;
+inline std::unordered_map<std::string, int>& category_counters() {
+    static std::unordered_map<std::string, int> counters;
+    return counters;
 }
 
 struct ExampleRegistrar {
-    ExampleRegistrar(const char* file, void (*run)())
-    {
+    ExampleRegistrar(const char* file, void (*run)()) {
+        auto path = std::filesystem::path(file);
+
+        std::string category = path.parent_path().filename().string();
+
+        char prefix = std::toupper(
+            static_cast<unsigned char>(category.front())
+        );
+
+        int number = ++category_counters()[category];
+
         example_registry().push_back({
-            next_example_suite_id()++,
-            // Use the source file's stem as the suite name so each REGISTER_EXAMPLE_SUITE
-            // macro invocation doesn't need to pass one explicitly.
-            std::filesystem::path(file).stem().string(),
+            std::string(1, prefix) + std::to_string(number),
+            category,
+            prettify(path.stem().string()),
             run
         });
     }

@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <string>
+#include <cctype>
+#include <algorithm>
+#include <string_view>
 
 // Global test counters.
 inline int total  = 0;
@@ -42,6 +45,22 @@ inline std::string prettify(std::string_view text)
             firstLetter = true;
         }
     }
+
+    return result;
+}
+
+// Transform string case to lower case.
+inline std::string toLower(std::string_view str) {
+    std::string result(str);
+
+    std::transform(
+        result.begin(),
+        result.end(),
+        result.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
 
     return result;
 }

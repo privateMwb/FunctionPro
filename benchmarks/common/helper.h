@@ -122,6 +122,22 @@ inline void doNotOptimize() {
 #endif
 }
 
+// Transform string case to lower case.
+inline std::string toLower(std::string_view str) {
+    std::string result(str);
+
+    std::transform(
+        result.begin(),
+        result.end(),
+        result.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
+
+    return result;
+}
+
 // Prints the benchmark table header.
 inline void setHeader(std::string_view header) {
     borderLine();

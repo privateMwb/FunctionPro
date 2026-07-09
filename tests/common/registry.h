@@ -1,38 +1,46 @@
 #pragma once
 
+#include "helper.h"
+
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <cctype>
 
 struct TestSuite {
-    int id;
+    std::string id;
+    std::string category;
     std::string name;
     void (*run)();
 };
 
-// Function-local static avoids the static initialization order fiasco:
-// registrars in other translation units run before main() and need a
-// guaranteed-initialized registry to register into.
-inline std::vector<TestSuite>& test_registry()
-{
+inline std::vector<TestSuite>& test_registry() {
     static std::vector<TestSuite> registry;
     return registry;
 }
 
-inline int& next_test_suite_id()
-{
-    static int id = 1;
-    return id;
+inline std::unordered_map<std::string, int>& category_counters() {
+    static std::unordered_map<std::string, int> counters;
+    return counters;
 }
 
 struct TestRegistrar {
-    TestRegistrar(const char* file, void (*run)())
-    {
+    TestRegistrar(const char* file, void (*run)()) {
+        auto path = std::filesystem::path(file);
+
+        std::string category = path.parent_path().filename().string();
+
+        char prefix = std::toupper(
+            static_cast<unsigned char>(category.front())
+        );
+
+        int number = ++category_counters()[category];
+
         test_registry().push_back({
-            next_test_suite_id()++,
-            // Use the source file's stem as the suite name so each TEST_SUITE
-            // macro invocation doesn't need to pass one explicitly.
-            std::filesystem::path(file).stem().string(),
+            std::string(1, prefix) + std::to_string(number),
+            category,
+            prettify(path.stem().string()),
             run
         });
     }

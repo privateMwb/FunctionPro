@@ -3,12 +3,16 @@
 #include <iostream>
 #include <string>
 #include <iomanip>
+#include <cctype>
+#include <algorithm>
 
 // ANSI terminal color codes.
-constexpr const char* RESET  = "\033[0m";
-constexpr const char* CYAN   = "\033[96m";
-constexpr const char* GRAY   = "\033[37m";
-constexpr const char* BLUE   = "\033[94m";
+constexpr const char* RESET = "\033[0m";
+constexpr const char* GREEN = "\033[92m";
+constexpr const char* RED   = "\033[91m";
+constexpr const char* CYAN  = "\033[96m";
+constexpr const char* GRAY  = "\033[37m";
+constexpr const char* BLUE  = "\033[94m";
 
 // Prints a horizontal separator line.
 inline void borderLine() {
@@ -30,6 +34,22 @@ inline std::string prettify(std::string_view text)
             firstLetter = true;
         }
     }
+
+    return result;
+}
+
+// Transform string case to lower case.
+inline std::string toLower(std::string_view str) {
+    std::string result(str);
+
+    std::transform(
+        result.begin(),
+        result.end(),
+        result.begin(),
+        [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        }
+    );
 
     return result;
 }
