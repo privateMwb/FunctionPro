@@ -186,13 +186,13 @@ inline std::string latestBaseline() {
 
 // Prints a horizontal separator line.
 inline void borderLine() {
-    std::cout << GRAY << std::string(90, '-') << RESET << "\n";
+    std::cout << GRAY << std::string(95, '-') << RESET << "\n";
 }
 
 // Prints a section header row and starts the matching markdown table.
 inline void setHeader(std::string_view header) {
     borderLine();
-    std::cout << std::left << CYAN << std::setw(30) << header << std::setw(15) << "Iteration"
+    std::cout << std::left << CYAN << std::setw(40) << header << std::setw(15) << "Iteration"
               << std::setw(15) << "Current" << std::setw(15) << "Baseline" << std::setw(15) << "  Δ"
               << RESET << "\n";
     borderLine();
@@ -225,7 +225,7 @@ inline void printComparisonRow(std::string_view suite, std::string_view name, st
 
     // clang-format off
     std::cout << std::left 
-              << std::setw(30) << name 
+              << std::setw(40) << name 
               << std::setw(15) << iteration 
               << std::setw(15) << currentStream.str() 
               << std::setw(15) << baselineStream.str() 
