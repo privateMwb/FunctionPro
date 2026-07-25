@@ -56,9 +56,7 @@ static void function_destructor_releases_heap_resources() {
 
 // Verifies destroying an empty Function is safe.
 static void function_destructor_on_empty_is_safe() {
-    {
-        Function<int()> f;
-    }
+    { Function<int()> f; }
     CHK(true); // reaching here without crashing is the test
 }
 
@@ -88,9 +86,7 @@ static void move_only_destructor_releases_heap_resources() {
 
 // Verifies destroying an empty MoveOnlyFunction is safe.
 static void move_only_destructor_on_empty_is_safe() {
-    {
-        MoveOnlyFunction<int()> f;
-    }
+    { MoveOnlyFunction<int()> f; }
     CHK(true);
 }
 
