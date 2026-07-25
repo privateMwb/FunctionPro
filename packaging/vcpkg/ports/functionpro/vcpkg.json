@@ -1,0 +1,11 @@
+{
+  "name": "functionpro",
+  "version": "1.0.0",
+  "description": "High-performance, header-only type-erased callable wrappers with small-buffer optimization — Function, MoveOnlyFunction, and FunctionRef.",
+  "homepage": "https://github.com/privateMwb/FunctionPro",
+  "license": "MIT",
+  "dependencies": [
+    "vcpkg-cmake",
+    "vcpkg-cmake-config"
+  ]
+}

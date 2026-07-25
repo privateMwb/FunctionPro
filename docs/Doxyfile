@@ -1,0 +1,51 @@
+# ============================================================
+# docs/Doxyfile
+# Generates API reference docs from include/, published to
+# GitHub Pages by .github/workflows/docs.yml.
+#
+# Retargeting: PROJECT_NAME, PROJECT_BRIEF, and the include/<Name>
+# path in INPUT are the only project-specific lines here.
+#
+# Only the settings that differ from Doxygen's defaults are listed —
+# run `doxygen -g -` to see the full default set if needed.
+# ============================================================
+
+PROJECT_NAME            = "FunctionPro"
+PROJECT_BRIEF           = "High-performance, header-only type-erased callable wrappers with small-buffer optimization — Function, MoveOnlyFunction, and FunctionRef."
+
+OUTPUT_DIRECTORY        = .
+
+INPUT                   = ../include ../README.md
+USE_MDFILE_AS_MAINPAGE  = ../README.md
+FILE_PATTERNS           = *.h *.tpp *.cpp
+RECURSIVE               = YES
+
+# No Doxygen comments in the headers yet — EXTRACT_ALL documents every
+# public symbol regardless, so the site isn't empty on first
+# generation. Switch to NO once headers have real \brief/\param
+# comments, to catch anything left undocumented instead.
+EXTRACT_ALL             = YES
+WARN_IF_UNDOCUMENTED    = YES
+
+GENERATE_HTML           = YES
+GENERATE_LATEX          = NO
+
+# Doxygen Awesome theme (jothepro/doxygen-awesome-css). Not vendored
+# in the repo — fetched fresh into doxygen-awesome-css/ by both the
+# CI workflow and the local generation command below, same philosophy
+# as nlohmann_json being fetched at configure time rather than checked in.
+HTML_EXTRA_STYLESHEET   = doxygen-awesome-css/doxygen-awesome.css \
+                          doxygen-awesome-css/doxygen-awesome-sidebar-only.css
+HTML_COLORSTYLE         = LIGHT
+GENERATE_TREEVIEW       = YES
+FULL_SIDEBAR            = NO
+DISABLE_INDEX           = NO
+
+# Class/include/collaboration diagrams. Requires Graphviz locally
+# (`pkg install graphviz` on Termux) — harmless if missing, Doxygen
+# just skips diagram generation with a warning.
+HAVE_DOT                = YES
+DOT_IMAGE_FORMAT        = svg
+INTERACTIVE_SVG         = YES
+
+QUIET                   = NO

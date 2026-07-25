@@ -1,0 +1,89 @@
+# ============================================================
+# .github/workflows/packaging.yml
+# Verifies the Conan recipe and vcpkg port actually build and are
+# consumable, on a real Linux runner (none of PACKAGING.md's Termux
+# workarounds apply here — this is what a real consumer experiences).
+#
+# Consumer verification is delegated to recipes/functionpro/all/test_package/
+# and vcpkg-smoke-test/ rather than reimplemented here, so there's one
+# place — not two — that defines what "the package works" means.
+# ============================================================
+
+name: Packaging
+
+on:
+  push:
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "packaging/recipes/**"
+      - "packaging/vcpkg/ports/**"
+      - "packaging/vcpkg-smoke-test/**"
+      - "CMakeLists.txt"
+      - "conandata.yml"
+  workflow_dispatch:
+
+jobs:
+  # ------------------------------------------------------------
+  # conan create builds the package, then automatically builds and
+  # runs recipes/functionpro/all/test_package/ against it.
+  # ------------------------------------------------------------
+  conan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Detect default profile
+        run: conan profile detect --force
+
+      - name: Resolve package version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=1.0.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: conan create (builds package + runs test_package)
+        run: |
+          conan create packaging/recipes/functionpro/all --version ${{ steps.version.outputs.version }} \
+            -s compiler.cppstd=23 --build=missing
+
+  # ------------------------------------------------------------
+  # Bootstrap vcpkg, then build vcpkg-smoke-test/ — its manifest
+  # (vcpkg.json + vcpkg-configuration.json's overlay-ports) installs
+  # the port automatically during cmake configure.
+  # ------------------------------------------------------------
+  vcpkg:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg
+          /tmp/vcpkg/bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Configure and build the smoke test
+        working-directory: packaging/vcpkg-smoke-test
+        run: |
+          cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=/tmp/vcpkg/scripts/buildsystems/vcpkg.cmake
+          cmake --build build
+
+      - name: Run the smoke test
+        working-directory: packaging/vcpkg-smoke-test
+        run: ./build/smoke_test

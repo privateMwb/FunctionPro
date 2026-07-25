@@ -1,0 +1,40 @@
+# ============================================================
+# .github/workflows/clang-tidy.yml
+# Runs clang-tidy static analysis against the library and test
+# suite on every push and pull request.
+# ============================================================
+
+name: Clang Tidy
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  clang-tidy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt update
+          sudo apt install -y clang-tidy
+
+      # Benchmarks/tools/examples aren't tidied here: tools/ fetches
+      # nlohmann_json via FetchContent, and running clang-tidy against
+      # a third-party dependency's source produces warnings this repo
+      # has no way to fix.
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_CLANG_TIDY=clang-tidy \
+            -DBUILD_BENCHMARKS=OFF \
+            -DBUILD_REGRESSION=OFF \
+            -DBUILD_EXAMPLES=OFF
+
+      - name: Build
+        run: cmake --build build

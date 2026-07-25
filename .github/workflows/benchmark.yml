@@ -1,0 +1,112 @@
+# ============================================================
+# .github/workflows/benchmark.yml
+# Builds and runs the benchmark suite plus the regression tool,
+# uploading results and committing baseline snapshots on tagged
+# or manual runs.
+# ============================================================
+
+name: Benchmarks
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version label for this run (e.g. v1.1.0). Required for manual runs — leave blank to skip committing a snapshot."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake clang
+
+      # Only benchmarks/ and tools/ (the regression tool) are needed
+      # here — tests/examples aren't exercised by this workflow.
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_BENCHMARKS=ON \
+            -DBUILD_REGRESSION=ON \
+            -DBUILD_EXAMPLES=OFF
+
+      - name: Build benchmarks
+        run: cmake --build build --target benchmarks
+
+      - name: Ensure results directory exists
+        run: mkdir -p benchmarks/results
+
+      - name: Run benchmarks
+        run: ./build/benchmarks
+
+      - name: Build regression tool
+        run: cmake --build build --target regression
+
+      - name: Run regression tool
+        run: ./build/regression
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Save baseline snapshots
+        if: steps.version.outputs.version != ''
+        run: |
+          mkdir -p benchmarks/baselines
+
+          cp benchmarks/results/benchmark_results.json "benchmarks/baselines/${{ steps.version.outputs.version }}.json"
+          cp benchmarks/results/benchmark_results.md "benchmarks/baselines/${{ steps.version.outputs.version }}.md"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}.json" \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}.md"
+
+          git diff --staged --quiet || git commit -m "benchmarks: add baseline snapshot for ${{ steps.version.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Upload benchmark JSON results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-json
+          path: benchmarks/results/benchmark_results.json
+
+      - name: Upload benchmark markdown results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-md
+          path: benchmarks/results/benchmark_results.md
+
+      - name: Upload regression JSON results
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-results-json
+          path: benchmarks/results/regression_results.json
+
+      - name: Upload regression markdown results
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-results-md
+          path: benchmarks/results/regression_results.md

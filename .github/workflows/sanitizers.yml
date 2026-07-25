@@ -1,0 +1,44 @@
+# ============================================================
+# .github/workflows/sanitizers.yml
+# Builds and runs the test suite under ASan/UBSan on every push
+# and pull request.
+# ============================================================
+
+name: Sanitizers
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  sanitizers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake clang
+
+      # Benchmarks/tools/examples are skipped: instrumenting a
+      # fetched third-party dependency (tools/ pulls in nlohmann_json)
+      # with sanitizer flags wastes build time and surfaces warnings
+      # this repo can't fix.
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DBUILD_BENCHMARKS=OFF \
+            -DBUILD_REGRESSION=OFF \
+            -DBUILD_EXAMPLES=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure

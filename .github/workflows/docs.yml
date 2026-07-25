@@ -1,0 +1,63 @@
+# ============================================================
+# .github/workflows/docs.yml
+# Generates API docs with Doxygen (docs/Doxyfile) and publishes
+# them to GitHub Pages.
+# ============================================================
+
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "include/**"
+      - "docs/**"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; a new push cancels an
+# in-flight one rather than queuing behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen and Graphviz
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+
+      - name: Fetch Doxygen Awesome theme
+        run: git clone --depth 1 https://github.com/jothepro/doxygen-awesome-css.git docs/doxygen-awesome-css
+
+      - name: Generate docs
+        working-directory: docs
+        run: doxygen Doxyfile
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

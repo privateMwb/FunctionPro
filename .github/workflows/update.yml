@@ -1,0 +1,115 @@
+# ============================================================
+# .github/workflows/update.yml
+# Bumps the version and source hash in the Conan recipe, vcpkg
+# port, and root CMakeLists.txt for a given v* tag.
+# ============================================================
+
+name: Update Package Recipes
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to update recipes for (e.g. v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-packages:
+    runs-on: ubuntu-latest
+
+    env:
+      PACKAGE_NAME: functionpro
+      REPOSITORY: privateMwb/FunctionPro
+      ROOT_DIR: .
+      CONAN_RECIPE_DIR: packaging/recipes/functionpro/all
+      VCPKG_PORT_DIR: packaging/vcpkg/ports/functionpro
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Determine source branch
+        id: branch
+        run: |
+          SHA=$(git rev-list -n 1 "${{ steps.tag.outputs.tag }}")
+          CANDIDATES=$(git branch -r --contains "$SHA" \
+            | grep -v ' -> ' | grep -v 'HEAD' | sed 's#^ *origin/##')
+
+          if [ -z "$CANDIDATES" ]; then
+            echo "No remote branch contains $SHA" >&2
+            exit 1
+          fi
+
+          DEFAULT="${{ github.event.repository.default_branch }}"
+
+          if echo "$CANDIDATES" | grep -qx "$DEFAULT"; then
+            BRANCH="$DEFAULT"
+          else
+            BRANCH=$(echo "$CANDIDATES" | head -n1)
+          fi
+
+          echo "Candidates: $(echo "$CANDIDATES" | tr '\n' ' ')"
+          echo "Source branch: $BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Download source archive
+        run: |
+          curl -L \
+            -o source.tar.gz \
+            https://github.com/${{ env.REPOSITORY }}/archive/refs/tags/${{ steps.tag.outputs.tag }}.tar.gz
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Update package files
+        run: |
+          python scripts/update_package_files.py \
+            --package ${{ env.PACKAGE_NAME }} \
+            --repo ${{ env.REPOSITORY }} \
+            --version ${{ steps.tag.outputs.version }} \
+            --archive source.tar.gz \
+            --root-dir "$ROOT_DIR" \
+            --conan-dir "$CONAN_RECIPE_DIR" \
+            --vcpkg-dir "$VCPKG_PORT_DIR"
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            "$ROOT_DIR/CMakeLists.txt" \
+            "$VCPKG_PORT_DIR/portfile.cmake" \
+            "$VCPKG_PORT_DIR/vcpkg.json" \
+            "$CONAN_RECIPE_DIR/conanfile.py" \
+            "$CONAN_RECIPE_DIR/conandata.yml"
+
+          if git diff --cached --quiet; then
+            echo "No changes."
+            exit 0
+          fi
+
+          git commit -m "Update package recipes for ${{ steps.tag.outputs.tag }}"
+          git push origin HEAD:${{ steps.branch.outputs.branch }}
