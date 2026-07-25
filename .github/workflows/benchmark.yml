@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake clang gdb
+          sudo apt install -y cmake clang
 
       # Only benchmarks/ and tools/ (the regression tool) are needed
       # here — tests/examples aren't exercised by this workflow.
@@ -51,8 +51,8 @@ jobs:
       - name: Ensure results directory exists
         run: mkdir -p benchmarks/results
 
-      - name: Run benchmarks under gdb
-        run: gdb -batch -ex run -ex bt --args ./build/benchmarks
+      - name: Run benchmarks
+        run: ./build/benchmarks
 
       - name: Build regression tool
         run: cmake --build build --target regression

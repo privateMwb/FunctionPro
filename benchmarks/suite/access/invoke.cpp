@@ -101,8 +101,10 @@ static void bench_move_only_invoke() {
 #endif
 }
 
-// Measures MoveOnlyFunction::operator() on an empty instance against
-// std::move_only_function's, where available.
+// Measures MoveOnlyFunction::operator() on an empty instance.
+// No std::move_only_function comparison here: unlike std::function,
+// invoking an empty std::move_only_function is undefined behavior
+// (not guaranteed to throw), so there's no safe reference-side case.
 static void bench_move_only_invoke_empty() {
     MoveOnlyFunction<int(int)> cSrc;
 
@@ -114,19 +116,7 @@ static void bench_move_only_invoke_empty() {
         }
     };
 
-#if defined(__cpp_lib_move_only_function)
-    std::move_only_function<int(int)> sSrc;
-    auto s = [&] {
-        try {
-            int v = sSrc(1);
-            doNotOptimize(v);
-        } catch (const std::bad_function_call&) {
-        }
-    };
-    BENCH("MoveOnlyFn::operator() (empty)", c, s);
-#else
     BENCH_SOLO("MoveOnlyFn::operator() (empty)", c);
-#endif
 }
 
 // Measures FunctionRef::operator() against std::function_ref::operator(),
