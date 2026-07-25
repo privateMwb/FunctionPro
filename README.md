@@ -297,6 +297,28 @@ comparisons ran solo (`BENCH_SOLO`) on this toolchain, since
 `Fn::*` rows compare against `std::function`; `MoveOnlyFn::*` rows
 compare against `std::move_only_function`.
 
+**`FunctionRef`** has no comparison table above since `std::function_ref`
+(C++26) isn't shipped on this toolchain yet — these are solo timings,
+not deltas:
+
+| Operation | FunctionPro (1M) |
+|---|---|
+| FnRef::operator() | 2.04 ms |
+| FnRef::operator() (empty) | 821.38 ms |
+| FnRef::operator() (function pointer) | 1.64 ms |
+| FnRef Move Construct | 541.39 us |
+| FnRef Bind | 548.13 us |
+| FnRef Copy Construct | 270.72 us |
+| FnRef Construct/destroy (empty) | 270.72 us |
+| FnRef Assign | 270.72 us |
+| FnRef::operator Bool() | 270.72 us |
+| FnRef::operator==(nullptr) | 270.71 us |
+
+Notably, `FnRef::operator()` bound to a function pointer (1.64 ms)
+beats a lambda-bound call (2.04 ms) — the function-pointer fast path
+(see Features) skipping the object-pointer indirection shows up
+directly in the numbers.
+
 FunctionPro's biggest wins are in moving and empty-call handling:
 heap-stored moves are a plain pointer transfer rather than a
 reallocation, and an empty call fails fast through a single vtable
