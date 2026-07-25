@@ -1,4 +1,4 @@
-# FunctionPro
+# FunctionPros
 
 <p align="center">
   <img src="https://img.shields.io/github/v/release/privateMwb/FunctionPro?style=for-the-badge&logo=github&color=yellow" alt="Version">
