@@ -2,7 +2,7 @@ vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO privateMwb/FunctionPro
     REF v1.0.0
-    SHA512 1
+    SHA512 e36ea60822221dad129b3f57083332d7a3cce4d8d68d2921a5da77f429fbd8eee8b92bf0b9aca7c6df440701fb3d553ac968f4a11903be62bb9f203f87c61e28
 )
 
 set(VCPKG_PORT_NAME FunctionPro)

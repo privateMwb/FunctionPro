@@ -1,7 +1,7 @@
 {
   "name": "functionpro",
   "version": "1.0.0",
-  "description": "High-performance, header-only type-erased callable wrappers with small-buffer optimization — Function, MoveOnlyFunction, and FunctionRef.",
+  "description": "High-performance, header-only type-erased callable wrappers with small-buffer optimization \u2014 Function, MoveOnlyFunction, and FunctionRef.",
   "homepage": "https://github.com/privateMwb/FunctionPro",
   "license": "MIT",
   "dependencies": [
