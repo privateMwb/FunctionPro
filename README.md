@@ -211,12 +211,14 @@ FunctionPro/
 │   │   └── functionpro/
 │   ├── vcpkg/
 │   │   └── ports/
+│   │       └── functionpro/
 │   └── vcpkg-smoke-test/
 │
 ├── scripts/
 │   └── update_package_files.py
 │
 ├── .github/
+│   ├── releases/
 │   └── workflows/
 │
 ├── cmake/
@@ -267,34 +269,49 @@ port and Conan recipe locally.
 
 ## <a id="benchmarks"></a>📊 Benchmarks
 
-Measured against each type's closest `std::` counterpart, same
-build, at 10K / 100K / 1M iterations
-(`benchmarks/baselines/v1.0.0.json` has the full dataset).
-`std::function_ref` (C++26) isn't available on the toolchains this
-runs on yet, so `FunctionRef` rows currently report solo, uncompared
-numbers.
+Measured against `std::function`, `std::move_only_function`, and
+`std::function_ref` at 10K / 100K / 1M iterations. `std::function_ref`
+comparisons ran solo (`BENCH_SOLO`) on this toolchain, since
+`std::function_ref` is a C++26 feature not yet shipped everywhere —
+`FunctionRef` numbers are its own timings, not a delta. Full results:
+`benchmarks/baselines/v1.0.0.md`.
 
-| Operation | FunctionPro | Reference | Difference |
+| Operation | FunctionPro (1M) | std (1M) | Δ |
 |---|---|---|---|
-| `Fn::operator()` (1M) | 1.39 ms | 1.36 ms (`std::function`) | -2.2% |
-| `Fn::operator() (empty)` (1M) | 714.73 ms | 1.04 s (`std::function`) | +45.7% |
-| `MoveOnlyFn::operator()` (1M) | 1.39 ms | 1.36 ms (`std::move_only_function`) | -2.1% |
-| `Fn Copy-assign` (1M) | 5.18 ms | 3.27 ms (`std::function`) | -36.9% |
-| `Fn Move-assign` (1M) | 1.50 ms | 5.04 ms (`std::function`) | +236.7% |
-| `MoveOnlyFn Move-assign` (1M) | 1.63 ms | 2.46 ms (`std::move_only_function`) | +50.3% |
-| `Fn Move Construct (small)` (1M) | 1.79 ms | 10.96 ms (`std::function`) | +510.9% |
-| `Fn Bind (40B, SBO Boundary)` (1M) | 1.64 ms | 13.04 ms (`std::function`) | +697.2% |
-| `Fn::swap()` (1M) | 16.69 ms | 2.46 ms (`std::function`) | -85.3% |
+| Fn Move Construct (small) | 1.79 ms | 10.96 ms | +510.9% |
+| Fn Move-assign | 1.50 ms | 5.04 ms | +236.7% |
+| Fn Move Construct (large) | 13.41 ms | 23.71 ms | +76.9% |
+| MoveOnlyFn Construct/destroy | 824.71 us | 1.36 ms | +64.8% |
+| MoveOnlyFn Move-assign | 1.63 ms | 2.46 ms | +50.3% |
+| Fn::operator() (empty) | 714.73 ms | 1.04 s | +45.7% |
+| Fn Bind (small) | 2.08 ms | 2.91 ms | +40.1% |
+| Fn Copy Construct (small) | 2.73 ms | 3.54 ms | +29.6% |
+| MoveOnlyFn Move Construct (small) | 1.91 ms | 2.45 ms | +28.1% |
+| Fn::reset() | 12.60 ms | 13.09 ms | +3.9% |
+| Fn::operator() | 1.39 ms | 1.36 ms | -2.2% |
+| Fn::operator==(nullptr) | 286.32 us | 270.72 us | -5.4% |
+| Fn Construct/destroy (empty) | 874.65 us | 818.60 us | -6.4% |
+| Fn Copy-assign | 5.18 ms | 3.27 ms | -36.9% |
+| Fn::swap() | 16.69 ms | 2.46 ms | -85.3% |
 
-`Fn::operator()` at steady-state hit-path invocation and
-`Fn Invoke`/`Fn Bind` across capture sizes track `std::function`
-closely (within a few percent either way) — the gaps that matter are
-at the extremes: move construction and SBO-boundary binding are
-where reclaiming the union'd storage byte layout pays off most.
-`swap()` is currently the one place `std::function` outright wins —
-going through each callable's real move constructor (see Features)
-costs more than whatever `std::function`'s implementation is doing,
-and is a candidate for further investigation.
+`Fn::*` rows compare against `std::function`; `MoveOnlyFn::*` rows
+compare against `std::move_only_function`.
+
+FunctionPro's biggest wins are in moving and empty-call handling:
+heap-stored moves are a plain pointer transfer rather than a
+reallocation, and an empty call fails fast through a single vtable
+check rather than whatever internal branching the std counterparts
+use for the same case.
+
+The trade-off is in the two operations where FunctionPro does
+deliberately more work for correctness. `swap()` always goes through
+the callable's real move constructor instead of swapping raw storage
+bytes, so it stays correct for callables with an internal
+self-pointer into their own storage — that guarantee costs real time
+next to a simpler byte-swap. `Copy-assign` builds the copy in a
+temporary before touching `*this`, so a throwing copy constructor
+leaves the destination untouched — the strong exception guarantee,
+paid for on every copy-assign, not just the ones that throw.
 
 ## <a id="documentation"></a>📖 Documentation
 
