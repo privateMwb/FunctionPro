@@ -25,4 +25,4 @@ jobs:
         run: |
           find include tests examples benchmarks regression \
             \( -name "*.h" -o -name "*.hpp" -o -name "*.cpp" -o -name "*.tpp" \) \
-            -exec clang-format --dry-run --Werror {} 
+            -exec clang-format --dry-run --Werror {} +
