@@ -38,7 +38,12 @@ static void function_destructor_releases_sbo_resources() {
     {
         Function<int()> f = [tracked] { return *tracked; };
         CHK(tracked.use_count() == 2);
-    } // f destroyed here
+        CHK(f() == 1); // exercise invoke() before destruction
+
+        Function<int()> g(f); // exercise copy() before destruction
+        CHK(tracked.use_count() == 3);
+        CHK(g() == 1);
+    } // f and g destroyed here
     CHK(tracked.use_count() == 1);
 }
 
@@ -68,6 +73,7 @@ static void move_only_destructor_releases_sbo_resources() {
     {
         MoveOnlyFunction<int()> f = [tracked] { return *tracked; };
         CHK(tracked.use_count() == 2);
+        CHK(f() == 1); // exercise invoke() before destruction
     } // f destroyed here
     CHK(tracked.use_count() == 1);
 }

@@ -38,6 +38,12 @@ static void function_moved_from_is_safe_and_reusable() {
     CHK(static_cast<bool>(src));
     CHK(src() == 2);
     CHK(dst() == 1); // dst remains unaffected throughout
+
+    Function<int()> dstCopy(dst); // exercise copy() of dst's original binding
+    CHK(dstCopy() == 1);
+
+    Function<int()> srcCopy(src); // exercise copy() of src's revived binding
+    CHK(srcCopy() == 2);
 }
 
 // Verifies the same for move-assignment as the source of the move,
@@ -55,6 +61,12 @@ static void function_moved_from_via_assign_is_safe_and_reusable() {
     src = [] { return 3; };
     CHK(src() == 3);
     CHK(dst() == 1);
+
+    Function<int()> dstCopy(dst); // exercise copy() of dst's original binding
+    CHK(dstCopy() == 1);
+
+    Function<int()> srcCopy(src); // exercise copy() of src's revived binding
+    CHK(srcCopy() == 3);
 }
 
 // Verifies a moved-from MoveOnlyFunction is safe to call (throws

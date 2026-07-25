@@ -41,6 +41,9 @@ static void function_move_sbo_transfers_and_empties_source() {
 
     CHK(dst() == 9);
     CHK(!static_cast<bool>(src));
+
+    Function<int()> other(dst); // exercise copy() for this binding
+    CHK(other() == 9);
 }
 
 // Verifies move-constructing a Function from a heap-stored callable

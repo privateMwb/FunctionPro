@@ -17,6 +17,11 @@ using namespace FunctionPro;
 // Verifies Function::reset() leaves the instance empty and unusable.
 static void function_reset_leaves_empty() {
     Function<int()> f = [] { return 1; };
+    CHK(f() == 1); // exercise invoke() while still bound
+
+    Function<int()> g(f); // exercise copy() while still bound
+    CHK(g() == 1);
+
     f.reset();
 
     CHK(!static_cast<bool>(f));
@@ -41,6 +46,13 @@ static void function_reset_releases_resources() {
 
     Function<int()> f = [tracked] { return *tracked; };
     CHK(tracked.use_count() == 2); // captured copy inside f
+    CHK(f() == 1);                 // exercise invoke() while still bound
+
+    {
+        Function<int()> g(f); // exercise copy() while still bound
+        CHK(tracked.use_count() == 3);
+        CHK(g() == 1);
+    } // g destroyed here, back to baseline before the reset() check below
 
     f.reset();
     CHK(tracked.use_count() == 1); // f's copy was destroyed
@@ -50,6 +62,7 @@ static void function_reset_releases_resources() {
 // unusable.
 static void move_only_reset_leaves_empty() {
     MoveOnlyFunction<int()> f = [] { return 1; };
+    CHK(f() == 1); // exercise invoke() while still bound
     f.reset();
 
     CHK(!static_cast<bool>(f));
@@ -75,6 +88,7 @@ static void move_only_reset_releases_resources() {
 
     MoveOnlyFunction<int()> f = [tracked] { return *tracked; };
     CHK(tracked.use_count() == 2);
+    CHK(f() == 1); // exercise invoke() while still bound
 
     f.reset();
     CHK(tracked.use_count() == 1);

@@ -67,6 +67,10 @@ static void function_copy_heap_is_independent() {
 
     src = [] { return -1; }; // reassign original, must not affect dst
     CHK(dst() == 9);
+    CHK(src() == -1); // exercise invoke() for the new binding
+
+    Function<int()> other(src); // exercise copy() for the new binding
+    CHK(other() == -1);
 }
 
 // Verifies copying a FunctionRef produces a shallow copy referencing

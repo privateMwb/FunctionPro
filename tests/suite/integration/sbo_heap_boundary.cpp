@@ -44,6 +44,11 @@ static void function_transitions_across_boundary_repeatedly() {
     CHK(f() == 1);
     CHK(t1.use_count() == 2);
 
+    {
+        Function<int()> copy1(f); // exercise copy() for this binding
+        CHK(copy1() == 1);
+    } // copy1 destroyed here, back to baseline before the next check
+
     f = LargePayload{t2, {}}; // large (heap)
     CHK(f() == 2);
     CHK(t1.use_count() == 1); // released
@@ -53,6 +58,11 @@ static void function_transitions_across_boundary_repeatedly() {
     CHK(f() == 3);
     CHK(t2.use_count() == 1); // released
     CHK(t3.use_count() == 2);
+
+    {
+        Function<int()> copy3(f); // exercise copy() for this binding
+        CHK(copy3() == 3);
+    } // copy3 destroyed here, back to baseline before the next check
 
     f = LargePayload{t4, {}}; // large again
     CHK(f() == 4);

@@ -63,6 +63,9 @@ static void function_concurrent_invoke_shared_instance() {
             allCorrect = false;
     }
     CHK(allCorrect);
+
+    Function<int(int)> g(f); // exercise copy() for this binding (f is const)
+    CHK(g(21) == 42);
 }
 
 // Verifies concurrent invocation across separate, independently-owned

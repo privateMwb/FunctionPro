@@ -62,14 +62,21 @@ void operator delete(void* p, std::size_t) noexcept {
 static void function_small_capture_no_allocation() {
     int a = 1, b = 2, c = 3;
     long before = g_allocCount;
-    bool invokeOk;
+    bool invokeOk, copyInvokeOk;
     {
         Function<int()> f = [a, b, c] { return a + b + c; };
         invokeOk = (f() == 6);
+
+        // Exercise copy() for this exact lambda binding. An SBO-fitting
+        // callable's copy doesn't heap-allocate either, so this stays
+        // inside the same measured window without affecting delta.
+        Function<int()> g(f);
+        copyInvokeOk = (g() == 6);
     }
     long delta = g_allocCount - before;
 
     CHK(invokeOk);
+    CHK(copyInvokeOk);
     CHK(delta == 0);
 }
 
@@ -79,14 +86,21 @@ static void function_large_capture_allocates_once() {
     LargePayload payload{};
     long before = g_allocCount;
     bool invokeOk;
+    long delta;
     {
         Function<int()> f = [payload] {
             (void)payload;
             return 1;
         };
         invokeOk = (f() == 1);
+        delta = g_allocCount - before; // snapshot before exercising copy() below
+
+        // Exercise copy() for this exact lambda binding. This allocates
+        // (heap-stored), but it happens after the delta snapshot above so
+        // it doesn't affect the "exactly one allocation" assertion.
+        Function<int()> g(f);
+        CHK(g() == 1);
     }
-    long delta = g_allocCount - before;
 
     CHK(invokeOk);
     CHK(delta == 1);
@@ -103,12 +117,18 @@ static void function_destruction_releases_heap_allocation() {
             (void)payload;
             return 1;
         };
+        CHK(f() == 1); // exercise invoke() before destruction
+
+        {
+            Function<int()> g(f); // exercise copy() before destruction
+            CHK(g() == 1);
+        } // g destroyed here -- its heap storage should be released too
     } // f destroyed here -- heap storage should be released
     long allocDelta = g_allocCount - allocBefore;
     long deallocDelta = g_deallocCount - deallocBefore;
 
-    CHK(allocDelta == 1);
-    CHK(deallocDelta == 1);
+    CHK(allocDelta == 2);   // one heap allocation for f, one for its copy g
+    CHK(deallocDelta == 2); // both released when their scopes end
 }
 
 // Verifies binding a small, SBO-fitting callable to MoveOnlyFunction

@@ -17,18 +17,27 @@ using namespace FunctionPro;
 static void function_invoke_returns_result() {
     Function<int()> f = [] { return 42; };
     CHK(f() == 42);
+
+    Function<int()> g(f); // exercise copy() for this binding
+    CHK(g() == 42);
 }
 
 // Verifies arguments are forwarded correctly to the stored callable.
 static void function_invoke_forwards_arguments() {
     Function<int(int, int)> f = [](int a, int b) { return a * 10 + b; };
     CHK(f(3, 7) == 37);
+
+    Function<int(int, int)> g(f); // exercise copy() for this binding
+    CHK(g(3, 7) == 37);
 }
 
 // Verifies operator() is callable through a const Function reference.
 static void function_invoke_via_const_ref() {
     const Function<int()> f = [] { return 5; };
     CHK(f() == 5);
+
+    const Function<int()> g(f); // exercise copy() from a const source
+    CHK(g() == 5);
 }
 
 // Verifies calling an empty Function throws std::bad_function_call.
