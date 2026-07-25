@@ -81,7 +81,7 @@ static void function_concurrent_invoke_separate_instances() {
         threads.emplace_back([&results, i] {
             Function<int()> f = [i] { return i * 3; };
 
-            Function<int()> g(f); // exercise copy() for this binding
+            Function<int()> g(f);            // exercise copy() for this binding
             Function<int()> h(std::move(g)); // exercise move() for this binding
 
             results[i] = h();

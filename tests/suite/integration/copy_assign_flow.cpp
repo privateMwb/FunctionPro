@@ -44,7 +44,7 @@ struct Multiplier {
 static void copy_assign_replaces_existing_binding() {
     auto tracked = std::make_shared<int>(3);
     Function<int()> dst = [] { return -1; }; // starts bound to something else
-    CHK(dst() == -1); // exercise invoke() for dst's initial binding
+    CHK(dst() == -1);                        // exercise invoke() for dst's initial binding
 
     {
         Function<int()> dstCopy(dst); // exercise copy() for dst's initial binding

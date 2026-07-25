@@ -49,7 +49,7 @@ static void function_reset_releases_resources() {
 
     Function<int()> f = [tracked] { return *tracked; };
     CHK(tracked.use_count() == 2); // captured copy inside f
-    CHK(f() == 1); // exercise invoke() while still bound
+    CHK(f() == 1);                 // exercise invoke() while still bound
 
     {
         Function<int()> g(f); // exercise copy() while still bound
@@ -57,7 +57,7 @@ static void function_reset_releases_resources() {
         CHK(g() == 1);
 
         Function<int()> h(std::move(g)); // exercise move() while still bound
-        CHK(tracked.use_count() == 3); // move transfers ownership, adds no reference
+        CHK(tracked.use_count() == 3);   // move transfers ownership, adds no reference
         CHK(h() == 1);
     } // g (moved-from) and h destroyed here, back to baseline before reset() below
 
@@ -104,7 +104,7 @@ static void move_only_reset_releases_resources() {
 
     {
         MoveOnlyFunction<int()> g(std::move(f)); // exercise move() while still bound
-        CHK(tracked.use_count() == 2); // move transfers ownership, adds no reference
+        CHK(tracked.use_count() == 2);           // move transfers ownership, adds no reference
         CHK(g() == 1);
         f = std::move(g); // move back so the checks below are unaffected
     }

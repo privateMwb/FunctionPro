@@ -45,7 +45,7 @@ static void function_destructor_releases_sbo_resources() {
         CHK(g() == 1);
 
         Function<int()> h(std::move(g)); // exercise move() before destruction
-        CHK(tracked.use_count() == 3); // move transfers ownership, adds no reference
+        CHK(tracked.use_count() == 3);   // move transfers ownership, adds no reference
         CHK(h() == 1);
     } // f, g (moved-from), and h destroyed here
     CHK(tracked.use_count() == 1);
@@ -65,7 +65,9 @@ static void function_destructor_releases_heap_resources() {
 
 // Verifies destroying an empty Function is safe.
 static void function_destructor_on_empty_is_safe() {
+    // clang-format off
     { Function<int()> f; }
+    // clang-format on
     CHK(true); // reaching here without crashing is the test
 }
 
@@ -80,7 +82,7 @@ static void move_only_destructor_releases_sbo_resources() {
         CHK(f() == 1); // exercise invoke() before destruction
 
         MoveOnlyFunction<int()> g(std::move(f)); // exercise move() before destruction
-        CHK(tracked.use_count() == 2); // move transfers ownership, adds no reference
+        CHK(tracked.use_count() == 2);           // move transfers ownership, adds no reference
         CHK(g() == 1);
     } // f (moved-from) and g destroyed here
     CHK(tracked.use_count() == 1);
@@ -100,7 +102,9 @@ static void move_only_destructor_releases_heap_resources() {
 
 // Verifies destroying an empty MoveOnlyFunction is safe.
 static void move_only_destructor_on_empty_is_safe() {
+    // clang-format off
     { MoveOnlyFunction<int()> f; }
+    // clang-format on
     CHK(true);
 }
 

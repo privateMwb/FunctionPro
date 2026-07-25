@@ -52,7 +52,7 @@ static void invocation_reflects_live_captured_state() {
     CHK(f() == 3);
 
     MoveOnlyFunction<int()> g(std::move(f)); // exercise move() for this binding
-    CHK(g() == 4); // state (the counter) carries over through the move
+    CHK(g() == 4);                           // state (the counter) carries over through the move
 }
 
 // Verifies moving a MoveOnlyFunction wrapping a non-copyable callable

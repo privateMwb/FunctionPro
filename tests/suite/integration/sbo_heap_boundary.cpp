@@ -87,7 +87,7 @@ static void move_only_transitions_across_boundary_repeatedly() {
 
     {
         MoveOnlyFunction<int()> moved1(std::move(f)); // exercise move() for this binding
-        CHK(t1.use_count() == 2); // move transfers ownership, adds no reference
+        CHK(t1.use_count() == 2);                     // move transfers ownership, adds no reference
         CHK(moved1() == 1);
         f = std::move(moved1); // move back so the checks below are unaffected
     }
