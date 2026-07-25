@@ -50,6 +50,9 @@ static void function_copy_sbo_is_independent() {
 
     CHK(src() == 5);
     CHK(dst() == 5);
+
+    Function<int()> moved(std::move(dst)); // exercise move() for this binding
+    CHK(moved() == 5);
 }
 
 // Verifies copying a Function holding a heap-stored callable produces

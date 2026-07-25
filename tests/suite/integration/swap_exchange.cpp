@@ -53,6 +53,11 @@ static void function_swap_sbo_sbo() {
 
     CHK(a() == 9);
     CHK(b() == 4);
+
+    // swap() never calls copy() (it moves), so exercise a genuine copy
+    // here to cover that code path for this binding.
+    Function<int()> c(a);
+    CHK(c() == 9);
 }
 
 // Verifies Function::swap() between two heap-stored callables.

@@ -41,6 +41,12 @@ static void function_self_copy_assign_is_safe() {
 
     CHK(static_cast<bool>(f));
     CHK(f() == "hello self-assign");
+
+    // Self-assign deliberately never calls copy() (that's the whole point
+    // of the guard this file is testing), so exercise a genuine, non-self
+    // copy here to cover that code path for this binding.
+    Function<std::string()> g(f);
+    CHK(g() == "hello self-assign");
 }
 
 // Verifies self-move-assign on a Function leaves stateful content intact.

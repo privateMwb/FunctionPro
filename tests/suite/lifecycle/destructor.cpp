@@ -43,7 +43,11 @@ static void function_destructor_releases_sbo_resources() {
         Function<int()> g(f); // exercise copy() before destruction
         CHK(tracked.use_count() == 3);
         CHK(g() == 1);
-    } // f and g destroyed here
+
+        Function<int()> h(std::move(g)); // exercise move() before destruction
+        CHK(tracked.use_count() == 3); // move transfers ownership, adds no reference
+        CHK(h() == 1);
+    } // f, g (moved-from), and h destroyed here
     CHK(tracked.use_count() == 1);
 }
 
@@ -74,7 +78,11 @@ static void move_only_destructor_releases_sbo_resources() {
         MoveOnlyFunction<int()> f = [tracked] { return *tracked; };
         CHK(tracked.use_count() == 2);
         CHK(f() == 1); // exercise invoke() before destruction
-    } // f destroyed here
+
+        MoveOnlyFunction<int()> g(std::move(f)); // exercise move() before destruction
+        CHK(tracked.use_count() == 2); // move transfers ownership, adds no reference
+        CHK(g() == 1);
+    } // f (moved-from) and g destroyed here
     CHK(tracked.use_count() == 1);
 }
 

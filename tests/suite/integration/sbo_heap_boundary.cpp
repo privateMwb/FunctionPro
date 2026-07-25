@@ -47,7 +47,10 @@ static void function_transitions_across_boundary_repeatedly() {
     {
         Function<int()> copy1(f); // exercise copy() for this binding
         CHK(copy1() == 1);
-    } // copy1 destroyed here, back to baseline before the next check
+
+        Function<int()> moved1(std::move(copy1)); // exercise move() for this binding
+        CHK(moved1() == 1);
+    } // copy1 (moved-from) and moved1 destroyed here, back to baseline before the next check
 
     f = LargePayload{t2, {}}; // large (heap)
     CHK(f() == 2);
@@ -81,6 +84,13 @@ static void move_only_transitions_across_boundary_repeatedly() {
     MoveOnlyFunction<int()> f = [t1] { return *t1; }; // small (SBO)
     CHK(f() == 1);
     CHK(t1.use_count() == 2);
+
+    {
+        MoveOnlyFunction<int()> moved1(std::move(f)); // exercise move() for this binding
+        CHK(t1.use_count() == 2); // move transfers ownership, adds no reference
+        CHK(moved1() == 1);
+        f = std::move(moved1); // move back so the checks below are unaffected
+    }
 
     f = LargePayload{t2, {}}; // large (heap)
     CHK(f() == 2);

@@ -117,7 +117,7 @@ cat > main.cpp << 'EOF'
 #include <FunctionPro/MoveOnlyFunction.h>
 #include <FunctionPro/FunctionRef.h>
 int main() {
-    rain::LRUCache<std::string, int> cache(3);
+    rain::Function<int(int, int)> f;
     return 0;
 }
 EOF
@@ -188,9 +188,11 @@ target_link_libraries(test PRIVATE FunctionPro::FunctionPro)
 EOF
 
 cat > main.cpp << 'EOF'
-#include <FunctionPro/LRUCache.h>
+#include <FunctionPro/Function.h>
+#include <FunctionPro/MoveOnlyFunction.h>
+#include <FunctionPro/FunctionRef.h>
 int main() {
-    rain::LRUCache<std::string, int> cache(3);
+    rain::Function<int(int, int)> f;
     return 0;
 }
 EOF

@@ -31,6 +31,9 @@ static void function_bound_is_true() {
 
     Function<int()> g(f); // also exercise copy() for this binding
     CHK(g() == 1);
+
+    Function<int()> h(std::move(g)); // also exercise move() for this binding
+    CHK(h() == 1);
 }
 
 // Verifies a Function reports false after reset().
@@ -40,6 +43,9 @@ static void function_reset_is_false() {
 
     Function<int()> g(f); // exercise copy() before it's reset away
     CHK(g() == 1);
+
+    Function<int()> h(std::move(g)); // exercise move() before it's reset away
+    CHK(h() == 1);
 
     f.reset();
     CHK(!static_cast<bool>(f));
@@ -62,12 +68,20 @@ static void move_only_bound_is_true() {
     MoveOnlyFunction<int()> f = [] { return 1; };
     CHK(static_cast<bool>(f));
     CHK(f() == 1); // also exercise invoke() for this binding
+
+    MoveOnlyFunction<int()> g(std::move(f)); // also exercise move() for this binding
+    CHK(g() == 1);
 }
 
 // Verifies a MoveOnlyFunction reports false after reset().
 static void move_only_reset_is_false() {
     MoveOnlyFunction<int()> f = [] { return 1; };
     CHK(f() == 1); // exercise invoke() before it's reset away
+
+    MoveOnlyFunction<int()> g(std::move(f)); // exercise move() for this binding
+    CHK(g() == 1);
+    f = std::move(g); // move back so f.reset() below still resets a bound instance
+
     f.reset();
     CHK(!static_cast<bool>(f));
 }

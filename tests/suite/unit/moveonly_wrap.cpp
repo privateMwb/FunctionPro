@@ -30,6 +30,9 @@ static void wraps_unique_ptr_capturing_callable() {
     MoveOnlyFunction<int()> f = [p = std::move(owned)] { return *p; };
 
     CHK(f() == 77);
+
+    MoveOnlyFunction<int()> g(std::move(f)); // exercise move() for this binding
+    CHK(g() == 77);
 }
 
 // Verifies the wrapped non-copyable callable is invoked directly (its
@@ -47,6 +50,9 @@ static void invocation_reflects_live_captured_state() {
     CHK(f() == 1);
     CHK(f() == 2);
     CHK(f() == 3);
+
+    MoveOnlyFunction<int()> g(std::move(f)); // exercise move() for this binding
+    CHK(g() == 4); // state (the counter) carries over through the move
 }
 
 // Verifies moving a MoveOnlyFunction wrapping a non-copyable callable

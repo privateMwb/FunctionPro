@@ -62,7 +62,7 @@ void operator delete(void* p, std::size_t) noexcept {
 static void function_small_capture_no_allocation() {
     int a = 1, b = 2, c = 3;
     long before = g_allocCount;
-    bool invokeOk, copyInvokeOk;
+    bool invokeOk, copyInvokeOk, moveInvokeOk;
     {
         Function<int()> f = [a, b, c] { return a + b + c; };
         invokeOk = (f() == 6);
@@ -72,11 +72,16 @@ static void function_small_capture_no_allocation() {
         // inside the same measured window without affecting delta.
         Function<int()> g(f);
         copyInvokeOk = (g() == 6);
+
+        // Same reasoning for move(): SBO move doesn't heap-allocate.
+        Function<int()> h(std::move(g));
+        moveInvokeOk = (h() == 6);
     }
     long delta = g_allocCount - before;
 
     CHK(invokeOk);
     CHK(copyInvokeOk);
+    CHK(moveInvokeOk);
     CHK(delta == 0);
 }
 
@@ -100,6 +105,10 @@ static void function_large_capture_allocates_once() {
         // it doesn't affect the "exactly one allocation" assertion.
         Function<int()> g(f);
         CHK(g() == 1);
+
+        // Exercise move() too -- a pointer transfer, so no new allocation.
+        Function<int()> h(std::move(g));
+        CHK(h() == 1);
     }
 
     CHK(invokeOk);
@@ -122,7 +131,10 @@ static void function_destruction_releases_heap_allocation() {
         {
             Function<int()> g(f); // exercise copy() before destruction
             CHK(g() == 1);
-        } // g destroyed here -- its heap storage should be released too
+
+            Function<int()> h(std::move(g)); // exercise move() before destruction
+            CHK(h() == 1);
+        } // g (moved-from) and h destroyed here -- their heap storage should be released too
     } // f destroyed here -- heap storage should be released
     long allocDelta = g_allocCount - allocBefore;
     long deallocDelta = g_deallocCount - deallocBefore;
@@ -136,14 +148,20 @@ static void function_destruction_releases_heap_allocation() {
 static void move_only_small_capture_no_allocation() {
     int a = 1, b = 2, c = 3;
     long before = g_allocCount;
-    bool invokeOk;
+    bool invokeOk, moveInvokeOk;
     {
         MoveOnlyFunction<int()> f = [a, b, c] { return a + b + c; };
         invokeOk = (f() == 6);
+
+        // SBO move doesn't heap-allocate either, so this stays inside the
+        // same measured window without affecting delta.
+        MoveOnlyFunction<int()> g(std::move(f));
+        moveInvokeOk = (g() == 6);
     }
     long delta = g_allocCount - before;
 
     CHK(invokeOk);
+    CHK(moveInvokeOk);
     CHK(delta == 0);
 }
 
@@ -153,14 +171,20 @@ static void move_only_large_capture_allocates_once() {
     LargePayload payload{};
     long before = g_allocCount;
     bool invokeOk;
+    long delta;
     {
         MoveOnlyFunction<int()> f = [payload] {
             (void)payload;
             return 1;
         };
         invokeOk = (f() == 1);
+        delta = g_allocCount - before; // snapshot before exercising move() below
+
+        // Exercise move() for this exact lambda binding -- a pointer
+        // transfer, so no new allocation after the snapshot above.
+        MoveOnlyFunction<int()> g(std::move(f));
+        CHK(g() == 1);
     }
-    long delta = g_allocCount - before;
 
     CHK(invokeOk);
     CHK(delta == 1);

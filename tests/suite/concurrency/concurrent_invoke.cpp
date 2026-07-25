@@ -66,6 +66,9 @@ static void function_concurrent_invoke_shared_instance() {
 
     Function<int(int)> g(f); // exercise copy() for this binding (f is const)
     CHK(g(21) == 42);
+
+    Function<int(int)> h(std::move(g)); // exercise move() for this binding
+    CHK(h(21) == 42);
 }
 
 // Verifies concurrent invocation across separate, independently-owned
@@ -77,7 +80,11 @@ static void function_concurrent_invoke_separate_instances() {
     for (int i = 0; i < kThreadCount; ++i) {
         threads.emplace_back([&results, i] {
             Function<int()> f = [i] { return i * 3; };
-            results[i] = f();
+
+            Function<int()> g(f); // exercise copy() for this binding
+            Function<int()> h(std::move(g)); // exercise move() for this binding
+
+            results[i] = h();
         });
     }
     for (auto& t : threads)
@@ -100,7 +107,8 @@ static void move_only_concurrent_invoke_separate_instances() {
     for (int i = 0; i < kThreadCount; ++i) {
         threads.emplace_back([&results, i] {
             MoveOnlyFunction<int()> f = [i] { return i * 5; };
-            results[i] = f();
+            MoveOnlyFunction<int()> g(std::move(f)); // exercise move() for this binding
+            results[i] = g();
         });
     }
     for (auto& t : threads)
