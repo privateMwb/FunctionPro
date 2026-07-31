@@ -40,13 +40,13 @@ overrides below can be dropped entirely off-device.
 
 - **`cmake.configure()` without the `BUILD_*` overrides silently
   configures the entire top-level project**, not just the library.
-  `CMakeLists.txt` also defines `benchmarks/`, `tests/`, `tools/`, and
+  `CMakeLists.txt` also defines `benchmarks/`, `tests/`, `regression/`, and
   `examples/` targets, and `benchmarks/` `FetchContent`-clones
   nlohmann/json at configure time. On Termux's mobile connection that
   clone can sit for a long time with zero CMake output, right after
   `-- Detecting CXX compile features - done` — looks exactly like a
   hang, not a slow clone. Always pass `-DBUILD_TESTS=OFF
-  -DBUILD_BENCHMARKS=OFF -DBUILD_TOOLS=OFF -DBUILD_EXAMPLES=OFF`
+  -DBUILD_BENCHMARKS=OFF -DBUILD_REGRESSION=OFF -DBUILD_EXAMPLES=OFF`
   (already baked into `conanfile.py`'s `build()` and `portfile.cmake`'s
   `vcpkg_cmake_configure`, but relevant if configuring manually).
 
