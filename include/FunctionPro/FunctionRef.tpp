@@ -96,8 +96,3 @@ bool FunctionRef<R(Args...)>::operator!=(std::nullptr_t) const noexcept {
 }
 
 } // namespace FunctionPro
-
-/// @brief Short alias so this library can be used as `rain::FunctionRef`,
-/// while its true namespace (and all internal diagnostics) remains
-/// `FunctionPro`. See FunctionRef.h for the same alias applied to the header.
-namespace rain = FunctionPro;

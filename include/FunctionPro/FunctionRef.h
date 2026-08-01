@@ -138,10 +138,18 @@ template <typename R, typename... Args> class FunctionRef<R(Args...)> {
 
 } // namespace FunctionPro
 
-/// @brief Short alias so this library can be used as `rain::FunctionRef`,
-/// while its true namespace (and all internal diagnostics) remains
-/// `FunctionPro`. See Function.h and MoveOnlyFunction.h for the same alias
-/// applied to `rain::Function` and `rain::MoveOnlyFunction`.
-namespace rain = FunctionPro;
+/// @brief Umbrella alias so this library's types are reachable as
+/// `rain::FunctionRef`, alongside every other project library, while its
+/// true namespace (and all internal diagnostics) remains `FunctionPro`.
+/// Reopens `rain` rather than aliasing it, for the same reason as
+/// Function.h. Declared separately here because this header doesn't
+/// include (and isn't included by) Function.h or MoveOnlyFunction.h --
+/// all three are independent entry points. Notably lighter-weight than
+/// the other two (no Detail/CallableStorage etc. dependency), so keeping
+/// it standalone also avoids forcing that machinery on someone who only
+/// wants a non-owning callable reference.
+namespace rain {
+using namespace FunctionPro;
+}
 
 #include "FunctionRef.tpp"

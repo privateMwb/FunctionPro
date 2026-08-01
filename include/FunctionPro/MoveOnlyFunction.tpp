@@ -165,9 +165,3 @@ bool MoveOnlyFunction<R(Args...)>::operator!=(std::nullptr_t) const noexcept {
 }
 
 } // namespace FunctionPro
-
-/// @brief Short alias so this library can be used as `rain::MoveOnlyFunction`,
-/// while its true namespace (and all internal diagnostics) remains
-/// `FunctionPro`. See MoveOnlyFunction.h for the same alias applied to the
-/// header.
-namespace rain = FunctionPro;

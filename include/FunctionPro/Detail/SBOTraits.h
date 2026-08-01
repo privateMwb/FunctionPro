@@ -31,8 +31,3 @@ template <typename T> struct SBOTraits {
 };
 
 } // namespace FunctionPro::Detail
-
-/// @brief Short alias so this library can be used as `rain::Detail`, while
-/// its true namespace (and all internal diagnostics) remains `FunctionPro`.
-/// See Function.h for the same alias applied to `rain::Function`.
-namespace rain = FunctionPro;

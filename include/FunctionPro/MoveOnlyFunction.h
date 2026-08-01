@@ -168,10 +168,15 @@ void swap(MoveOnlyFunction<R(Args...)>& lhs, MoveOnlyFunction<R(Args...)>& rhs) 
 
 } // namespace FunctionPro
 
-/// @brief Short alias so this library can be used as `rain::MoveOnlyFunction`,
-/// while its true namespace (and all internal diagnostics) remains
-/// `FunctionPro`. See Function.h and FunctionRef.h for the same alias
-/// applied to `rain::Function` and `rain::FunctionRef`.
-namespace rain = FunctionPro;
+/// @brief Umbrella alias so this library's types are reachable as
+/// `rain::MoveOnlyFunction`, alongside every other project library, while
+/// its true namespace (and all internal diagnostics) remains `FunctionPro`.
+/// Reopens `rain` rather than aliasing it, for the same reason as
+/// Function.h. Declared separately here because this header doesn't
+/// include (and isn't included by) Function.h or FunctionRef.h -- all
+/// three are independent entry points.
+namespace rain {
+using namespace FunctionPro;
+}
 
 #include "MoveOnlyFunction.tpp"
