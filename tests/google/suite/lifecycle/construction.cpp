@@ -84,7 +84,7 @@ struct LargeCallable : AllocCounting {
 // heap allocation.
 TEST(Construction, SmallCaptureNoAllocation) {
     int a = 1, b = 2, c = 3;
-    long before = LargePayload::allocCount;
+    long before = LargeCallable::allocCount;
     bool invokeOk, copyInvokeOk, moveInvokeOk;
     {
         Function<int()> f = [a, b, c] { return a + b + c; };
@@ -100,7 +100,7 @@ TEST(Construction, SmallCaptureNoAllocation) {
         Function<int()> h(std::move(g));
         moveInvokeOk = (h() == 6);
     }
-    long delta = LargePayload::allocCount - before;
+    long delta = LargeCallable::allocCount - before;
 
     EXPECT_TRUE(invokeOk);
     EXPECT_TRUE(copyInvokeOk);
@@ -162,7 +162,7 @@ TEST(Construction, DestructionReleasesHeap) {
 // causes no heap allocation.
 TEST(Construction, MoveOnlySmallNoAlloc) {
     int a = 1, b = 2, c = 3;
-    long before = LargePayload::allocCount;
+    long before = LargeCallable::allocCount;
     bool invokeOk, moveInvokeOk;
     {
         MoveOnlyFunction<int()> f = [a, b, c] { return a + b + c; };
@@ -173,7 +173,7 @@ TEST(Construction, MoveOnlySmallNoAlloc) {
         MoveOnlyFunction<int()> g(std::move(f));
         moveInvokeOk = (g() == 6);
     }
-    long delta = LargePayload::allocCount - before;
+    long delta = LargeCallable::allocCount - before;
 
     EXPECT_TRUE(invokeOk);
     EXPECT_TRUE(moveInvokeOk);
@@ -208,7 +208,7 @@ TEST(Construction, RefNeverAllocates) {
     int a = 1, b = 2, c = 3;
     LargePayload payload{};
 
-    long before = LargePayload::allocCount;
+    long before = LargeCallable::allocCount;
     bool smallOk, largeOk;
     {
         auto smallCallable = [a, b, c] { return a + b + c; };
@@ -221,10 +221,9 @@ TEST(Construction, RefNeverAllocates) {
         smallOk = (smallRef() == 6);
         largeOk = (largeRef() == 1);
     }
-    long delta = LargePayload::allocCount - before;
+    long delta = LargeCallable::allocCount - before;
 
     EXPECT_TRUE(smallOk);
     EXPECT_TRUE(largeOk);
     EXPECT_EQ(delta, 0);
 }
-q
