@@ -1,11 +1,17 @@
 /**
- * @file VTable.h
- * @brief Type-erased operation table used by FunctionPro's callable wrappers.
+ * @file            VTable.h
  *
- * Contains the dispatch table structure that `VTableFactory` populates
- * per concrete callable type, and that `Function`/`MoveOnlyFunction`
- * hold a pointer to for invoking, copying, moving, and destroying their
- * stored callable without knowing its concrete type.
+ * @date            2026-23-7
+ *
+ * @version         1.0.0
+ *
+ * @copyright       Copyright (c) 2026 privateMwb
+ *                  All rights reserved.
+ *                  https://github.com/privateMwb/FunctionPro
+ *
+ * @attention       This source is released under the MIT license
+ *                  SPDX-License-Identifier: MIT
+ *                  <http://opensource.org/licenses/MIT>
  */
 
 #pragma once

@@ -1,0 +1,37 @@
+# ============================================================
+# .clang-tidy
+# Static analysis config. Broad check groups enabled, with the
+# specific rules that fight low-level systems code (custom allocators,
+# pointer arithmetic, manual memory management) turned back off —
+# a strict cppcoreguidelines profile as-is would drown real findings
+# in noise from code that's deliberately doing what it's flagging.
+# ============================================================
+
+Checks: >
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  modernize-*,
+  cert-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -modernize-use-trailing-return-type,
+  -bugprone-easily-swappable-parameters
+
+WarningsAsErrors: ''
+
+# Only warn on issues in this project's own headers, not on
+# vendored/fetched dependencies (nlohmann_json, googletest, etc.)
+# pulled in via FetchContent.
+HeaderFilterRegex: '(include|src)/.*'
+
+FormatStyle: file

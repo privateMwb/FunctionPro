@@ -1,3 +1,11 @@
+# ============================================================
+# .clang-format
+# Formatting style config. LLVM base with 4-space indentation and a
+# 100-column limit, left-aligned pointers/references, attached braces,
+# and sorted includes -- kept close to defaults so diffs stay small
+# and the style doesn't need explaining to new contributors.
+# ============================================================
+
 BasedOnStyle: LLVM
 IndentWidth: 4
 ColumnLimit: 100

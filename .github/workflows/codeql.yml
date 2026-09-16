@@ -1,0 +1,58 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Catches new CodeQL query packs/advisories even on weeks with no
+    # pushes -- Mondays 06:00 UTC.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (C++)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          languages: cpp
+          # security-extended pulls in additional query packs beyond
+          # the default security-and-quality set (more coverage, more
+          # runtime) -- drop this line to fall back to CodeQL's
+          # built-in default suite if runs get too slow.
+          queries: security-extended
+
+      - name: Configure and build
+        # Tests are enabled so CodeQL traces and analyzes that code
+        # too, not just the library itself. Benchmarks, tools, and
+        # examples stay OFF, matching the convention already used in
+        # clang-tidy.yml/coverage.yml/sanitizers.yml: tools/ fetches
+        # nlohmann_json via FetchContent, and analyzing a third-party
+        # dependency's source produces findings this repo has no way
+        # to fix.
+        run: |
+          cmake -B build -S . \
+            -DBUILD_TESTS=ON \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_BENCHMARKS=OFF \
+            -DBUILD_REGRESSION=OFF
+          cmake --build build --parallel
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          category: "/language:cpp"

@@ -1,10 +1,17 @@
 /**
- * @file CallableStorage.h
- * @brief Raw inline/heap storage backing FunctionPro's type-erased callables.
+ * @file            CallableStorage.h
  *
- * Contains the storage primitive shared by `Function`, `MoveOnlyFunction`,
- * and `VTableFactory` for holding a type-erased callable either inline
- * (Small Buffer Optimization) or on the heap.
+ * @date            2026-23-7
+ *
+ * @version         1.0.0
+ *
+ * @copyright       Copyright (c) 2026 privateMwb
+ *                  All rights reserved.
+ *                  https://github.com/privateMwb/FunctionPro
+ *
+ * @attention       This source is released under the MIT license
+ *                  SPDX-License-Identifier: MIT
+ *                  <http://opensource.org/licenses/MIT>
  */
 
 #pragma once

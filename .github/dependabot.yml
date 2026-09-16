@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # ------------------------------------------------------------
+  # OSS-Fuzz base image used by ClusterFuzzLite. Keeps the pinned
+  # sha256 digest in .clusterfuzzlite/Dockerfile up to date.
+  # ------------------------------------------------------------
+  - package-ecosystem: "docker"
+    directory: "/.clusterfuzzlite"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "docker"
+
+  # ------------------------------------------------------------
+  # Conan, hash-pinned in packaging/requirements-conan.txt.
+  # Dependabot re-resolves and re-hashes the whole lockfile when
+  # conan or any of its transitive deps releases a new version.
+  # ------------------------------------------------------------
+  - package-ecosystem: "pip"
+    directory: "/packaging"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "pip"
+
+  # ------------------------------------------------------------
+  # Actions pinned by commit SHA across all workflows in
+  # .github/workflows/. Dependabot updates the SHA (and the
+  # trailing version comment) when a new release ships.
+  # ------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"

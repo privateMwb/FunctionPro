@@ -1,0 +1,12 @@
+# CODEOWNERS
+#
+# This file defines who is automatically requested for review when a
+# pull request touches matching paths. It also allows enabling
+# "Require review from Code Owners" in the branch protection ruleset.
+#
+# Order matters: the last matching pattern in this file takes
+# precedence. See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# for full syntax.
+
+# Default owner for everything in the repo, unless overridden below.
+* @privateMwb

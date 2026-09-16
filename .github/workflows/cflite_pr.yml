@@ -1,0 +1,53 @@
+# ============================================================
+# .github/workflows/cflite_pr.yml
+# Runs a short fuzz pass against fuzz_function on every pull request
+# that touches Function's implementation, so a change that introduces
+# a memory-safety bug fails CI before merge rather than waiting for
+# the next scheduled batch run.
+# ============================================================
+
+name: PR Fuzzing
+
+on:
+  pull_request:
+    paths:
+      - "include/FunctionPro/Function.h"
+      - "include/FunctionPro/Function.tpp"
+      - "include/FunctionPro/MoveOnlyFunction.h"
+      - "include/FunctionPro/MoveOnlyFunction.tpp"
+      - "include/FunctionPro/FunctionRef.h"
+      - "include/FunctionPro/FunctionRef.tpp"
+      - "include/FunctionPro/Detail/**"
+      - "fuzz/**"
+      - ".clusterfuzzlite/**"
+
+permissions:
+  contents: read
+
+jobs:
+  PR:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer:
+          - address
+          - undefined
+    steps:
+      - name: Build Fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: c++
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          sanitizer: ${{ matrix.sanitizer }}
+
+      - name: Run Fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 300
+          mode: "code-change"
+          sanitizer: ${{ matrix.sanitizer }}
+          output-sarif: true

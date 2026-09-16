@@ -1,10 +1,17 @@
 /**
- * @file VTableFactory.h
- * @brief Generates per-callable-type `VTable` operations for FunctionPro.
+ * @file            VTableFactory.h
  *
- * Contains the factory that, for each concrete callable type erased by
- * `Function` or `MoveOnlyFunction`, generates the invoke/copy/move/destroy
- * functions bound into that type's shared `VTable`.
+ * @date            2026-23-7
+ *
+ * @version         1.0.0
+ *
+ * @copyright       Copyright (c) 2026 privateMwb
+ *                  All rights reserved.
+ *                  https://github.com/privateMwb/FunctionPro
+ *
+ * @attention       This source is released under the MIT license
+ *                  SPDX-License-Identifier: MIT
+ *                  <http://opensource.org/licenses/MIT>
  */
 
 #pragma once
@@ -14,6 +21,7 @@
 #include "SBOTraits.h"              // SBOTraits<T>::fits — compile-time inline-vs-heap dispatch
 #include "VTable.h"                 // VTable — operation table this factory populates
 
+#include <type_traits>              // std::is_nothrow_move_constructible_v
 #include <utility>                  // std::move, std::forward
 // clang-format on
 
@@ -37,6 +45,12 @@ namespace FunctionPro::Detail {
  * runtime.
  */
 template <typename T, typename R, typename... Args> struct VTableFactory {
+
+    static_assert(std::is_nothrow_move_constructible_v<T>,
+                  "FunctionPro requires the stored callable to be nothrow-move-constructible: "
+                  "VTable::move and VTable::destroy are declared noexcept and call straight "
+                  "through to T's move constructor and destructor, so a throwing move "
+                  "constructor would terminate the program instead of failing gracefully.");
 
     /**
      * @brief Invokes the stored callable.

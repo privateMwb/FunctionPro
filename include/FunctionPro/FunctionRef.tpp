@@ -51,10 +51,13 @@ FunctionRef<R(Args...)>::FunctionRef(T& callable) noexcept {
             return reinterpret_cast<DecayT>(p.fn)(std::forward<Args>(args)...);
         };
     } else {
-        // T is a callable object — store address through obj
+        // T is a callable object — store address through obj, keeping
+        // T's cv-qualification (not DecayT) so a const callable can
+        // only ever be invoked through a const-qualified pointer.
+        using StoredT = T;
         ptr_.obj = const_cast<void*>(static_cast<const void*>(&callable));
         invoke_ = [](PtrStorage p, Args&&... args) -> R {
-            return (*static_cast<DecayT*>(p.obj))(std::forward<Args>(args)...);
+            return (*static_cast<StoredT*>(p.obj))(std::forward<Args>(args)...);
         };
     }
 }
