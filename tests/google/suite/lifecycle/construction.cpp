@@ -56,8 +56,26 @@ struct AllocCounting {
 };
 
 // 64 bytes of capture is comfortably past the 40-byte SBO_SIZE limit.
-struct LargePayload : AllocCounting {
+// Used where only the object's *size* matters (e.g. FunctionRef, which
+// never allocates regardless of what it references).
+struct LargePayload {
     std::array<std::byte, 64> padding{};
+};
+
+// A callable that IS the counted type, rather than merely containing
+// one. `Function`/`MoveOnlyFunction` heap-allocate via
+// `new DecayT(...)` where DecayT is the stored callable's own type --
+// for a lambda that captures a LargePayload by value, DecayT is the
+// compiler-generated closure type, which only *has* a LargePayload
+// member and does NOT inherit its operator new/delete. Allocating a
+// closure therefore never touches LargePayload's counters. Deriving
+// the callable itself from AllocCounting is what lets `new DecayT(...)`
+// route through the counted operator new/delete.
+struct LargeCallable : AllocCounting {
+    std::array<std::byte, 64> padding{};
+    int operator()() const {
+        return 1;
+    }
 };
 
 } // namespace
@@ -93,19 +111,15 @@ TEST(Construction, SmallCaptureNoAllocation) {
 // Verifies binding a large, heap-forcing callable to Function causes
 // exactly one heap allocation.
 TEST(Construction, LargeCaptureAllocatesOnce) {
-    LargePayload payload{};
-    long before = LargePayload::allocCount;
+    long before = LargeCallable::allocCount;
     bool invokeOk;
     long delta;
     {
-        Function<int()> f = [payload] {
-            (void)payload;
-            return 1;
-        };
+        Function<int()> f = LargeCallable{};
         invokeOk = (f() == 1);
-        delta = LargePayload::allocCount - before; // snapshot before exercising copy() below
+        delta = LargeCallable::allocCount - before; // snapshot before exercising copy() below
 
-        // Exercise copy() for this exact lambda binding. This allocates
+        // Exercise copy() for this exact binding. This allocates
         // (heap-stored), but it happens after the delta snapshot above so
         // it doesn't affect the "exactly one allocation" assertion.
         Function<int()> g(f);
@@ -123,14 +137,10 @@ TEST(Construction, LargeCaptureAllocatesOnce) {
 // Verifies a Function's heap-allocated callable is released exactly
 // once when the Function is destroyed.
 TEST(Construction, DestructionReleasesHeap) {
-    LargePayload payload{};
-    long allocBefore = LargePayload::allocCount;
-    long deallocBefore = LargePayload::deallocCount;
+    long allocBefore = LargeCallable::allocCount;
+    long deallocBefore = LargeCallable::deallocCount;
     {
-        Function<int()> f = [payload] {
-            (void)payload;
-            return 1;
-        };
+        Function<int()> f = LargeCallable{};
         EXPECT_EQ(f(), 1); // exercise invoke() before destruction
 
         {
@@ -141,8 +151,8 @@ TEST(Construction, DestructionReleasesHeap) {
             EXPECT_EQ(h(), 1);
         } // g (moved-from) and h destroyed here -- their heap storage should be released too
     } // f destroyed here -- heap storage should be released
-    long allocDelta = LargePayload::allocCount - allocBefore;
-    long deallocDelta = LargePayload::deallocCount - deallocBefore;
+    long allocDelta = LargeCallable::allocCount - allocBefore;
+    long deallocDelta = LargeCallable::deallocCount - deallocBefore;
 
     EXPECT_EQ(allocDelta, 2);   // one heap allocation for f, one for its copy g
     EXPECT_EQ(deallocDelta, 2); // both released when their scopes end
@@ -173,19 +183,15 @@ TEST(Construction, MoveOnlySmallNoAlloc) {
 // Verifies binding a large, heap-forcing callable to MoveOnlyFunction
 // causes exactly one heap allocation.
 TEST(Construction, MoveOnlyLargeAllocatesOnce) {
-    LargePayload payload{};
-    long before = LargePayload::allocCount;
+    long before = LargeCallable::allocCount;
     bool invokeOk;
     long delta;
     {
-        MoveOnlyFunction<int()> f = [payload] {
-            (void)payload;
-            return 1;
-        };
+        MoveOnlyFunction<int()> f = LargeCallable{};
         invokeOk = (f() == 1);
-        delta = LargePayload::allocCount - before; // snapshot before exercising move() below
+        delta = LargeCallable::allocCount - before; // snapshot before exercising move() below
 
-        // Exercise move() for this exact lambda binding -- a pointer
+        // Exercise move() for this exact binding -- a pointer
         // transfer, so no new allocation after the snapshot above.
         MoveOnlyFunction<int()> g(std::move(f));
         EXPECT_EQ(g(), 1);
@@ -221,3 +227,4 @@ TEST(Construction, RefNeverAllocates) {
     EXPECT_TRUE(largeOk);
     EXPECT_EQ(delta, 0);
 }
+q
