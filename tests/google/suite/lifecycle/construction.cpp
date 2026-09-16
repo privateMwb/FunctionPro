@@ -8,22 +8,20 @@
 // - FunctionRef never allocates, regardless of the referenced
 //   callable's size, since it only ever stores an address
 //
-// Verified via a global operator new/delete override that counts calls
-// -- this is the only way to observe the SBO/heap split from outside
-// the class, since it's an implementation detail with no public API to
-// query directly. Each check snapshots the allocation count immediately
-// before and after the measured construction/destruction, and keeps
-// assertions (which may trigger one-time iostream allocations on their
-// first-ever use in the process) outside that measurement window.
-//
-// NOTE: this file defines a process-wide operator new/delete override.
-// If the test suite links multiple .cpp files into one binary, this
-// will collide (ODR/link error) with any other file doing the same --
-// flag it if that happens.
+// Verified via a *class-scoped* operator new/delete override on the
+// payload types themselves, rather than a global override. Function
+// only ever heap-allocates via `new DecayT(...)` / `delete` on the
+// exact stored callable type, so giving that type its own member
+// operator new/delete counts precisely the allocations we care about
+// without touching GoogleTest's, std::vector's, or anything else's
+// internal allocations. This also means multiple test files can each
+// define their own counted payload type with no ODR/link collision,
+// unlike a process-wide global override.
 
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdlib>
 #include <new>
 
@@ -34,38 +32,41 @@
 using namespace FunctionPro;
 
 namespace {
-long g_allocCount = 0;
-long g_deallocCount = 0;
+
+// Mixin providing per-type allocation counting via member operator
+// new/delete. Deriving a payload from this scopes the count to just
+// that type's allocations -- it never intercepts anything else in the
+// process (gtest's internals included).
+struct AllocCounting {
+    static inline long allocCount = 0;
+    static inline long deallocCount = 0;
+
+    static void* operator new(std::size_t sz) {
+        ++allocCount;
+        void* p = std::malloc(sz);
+        if (!p)
+            throw std::bad_alloc();
+        return p;
+    }
+    static void operator delete(void* p) noexcept {
+        if (p)
+            ++deallocCount;
+        std::free(p);
+    }
+};
 
 // 64 bytes of capture is comfortably past the 40-byte SBO_SIZE limit.
-struct LargePayload {
+struct LargePayload : AllocCounting {
     std::array<std::byte, 64> padding{};
 };
-} // namespace
 
-void* operator new(std::size_t sz) {
-    ++g_allocCount;
-    void* p = std::malloc(sz);
-    if (!p)
-        throw std::bad_alloc();
-    return p;
-}
-void operator delete(void* p) noexcept {
-    if (p)
-        ++g_deallocCount;
-    std::free(p);
-}
-void operator delete(void* p, std::size_t) noexcept {
-    if (p)
-        ++g_deallocCount;
-    std::free(p);
-}
+} // namespace
 
 // Verifies binding a small, SBO-fitting callable to Function causes no
 // heap allocation.
 TEST(Construction, SmallCaptureNoAllocation) {
     int a = 1, b = 2, c = 3;
-    long before = g_allocCount;
+    long before = LargePayload::allocCount;
     bool invokeOk, copyInvokeOk, moveInvokeOk;
     {
         Function<int()> f = [a, b, c] { return a + b + c; };
@@ -81,7 +82,7 @@ TEST(Construction, SmallCaptureNoAllocation) {
         Function<int()> h(std::move(g));
         moveInvokeOk = (h() == 6);
     }
-    long delta = g_allocCount - before;
+    long delta = LargePayload::allocCount - before;
 
     EXPECT_TRUE(invokeOk);
     EXPECT_TRUE(copyInvokeOk);
@@ -93,7 +94,7 @@ TEST(Construction, SmallCaptureNoAllocation) {
 // exactly one heap allocation.
 TEST(Construction, LargeCaptureAllocatesOnce) {
     LargePayload payload{};
-    long before = g_allocCount;
+    long before = LargePayload::allocCount;
     bool invokeOk;
     long delta;
     {
@@ -102,7 +103,7 @@ TEST(Construction, LargeCaptureAllocatesOnce) {
             return 1;
         };
         invokeOk = (f() == 1);
-        delta = g_allocCount - before; // snapshot before exercising copy() below
+        delta = LargePayload::allocCount - before; // snapshot before exercising copy() below
 
         // Exercise copy() for this exact lambda binding. This allocates
         // (heap-stored), but it happens after the delta snapshot above so
@@ -123,8 +124,8 @@ TEST(Construction, LargeCaptureAllocatesOnce) {
 // once when the Function is destroyed.
 TEST(Construction, DestructionReleasesHeap) {
     LargePayload payload{};
-    long allocBefore = g_allocCount;
-    long deallocBefore = g_deallocCount;
+    long allocBefore = LargePayload::allocCount;
+    long deallocBefore = LargePayload::deallocCount;
     {
         Function<int()> f = [payload] {
             (void)payload;
@@ -140,8 +141,8 @@ TEST(Construction, DestructionReleasesHeap) {
             EXPECT_EQ(h(), 1);
         } // g (moved-from) and h destroyed here -- their heap storage should be released too
     } // f destroyed here -- heap storage should be released
-    long allocDelta = g_allocCount - allocBefore;
-    long deallocDelta = g_deallocCount - deallocBefore;
+    long allocDelta = LargePayload::allocCount - allocBefore;
+    long deallocDelta = LargePayload::deallocCount - deallocBefore;
 
     EXPECT_EQ(allocDelta, 2);   // one heap allocation for f, one for its copy g
     EXPECT_EQ(deallocDelta, 2); // both released when their scopes end
@@ -151,7 +152,7 @@ TEST(Construction, DestructionReleasesHeap) {
 // causes no heap allocation.
 TEST(Construction, MoveOnlySmallNoAlloc) {
     int a = 1, b = 2, c = 3;
-    long before = g_allocCount;
+    long before = LargePayload::allocCount;
     bool invokeOk, moveInvokeOk;
     {
         MoveOnlyFunction<int()> f = [a, b, c] { return a + b + c; };
@@ -162,7 +163,7 @@ TEST(Construction, MoveOnlySmallNoAlloc) {
         MoveOnlyFunction<int()> g(std::move(f));
         moveInvokeOk = (g() == 6);
     }
-    long delta = g_allocCount - before;
+    long delta = LargePayload::allocCount - before;
 
     EXPECT_TRUE(invokeOk);
     EXPECT_TRUE(moveInvokeOk);
@@ -173,7 +174,7 @@ TEST(Construction, MoveOnlySmallNoAlloc) {
 // causes exactly one heap allocation.
 TEST(Construction, MoveOnlyLargeAllocatesOnce) {
     LargePayload payload{};
-    long before = g_allocCount;
+    long before = LargePayload::allocCount;
     bool invokeOk;
     long delta;
     {
@@ -182,7 +183,7 @@ TEST(Construction, MoveOnlyLargeAllocatesOnce) {
             return 1;
         };
         invokeOk = (f() == 1);
-        delta = g_allocCount - before; // snapshot before exercising move() below
+        delta = LargePayload::allocCount - before; // snapshot before exercising move() below
 
         // Exercise move() for this exact lambda binding -- a pointer
         // transfer, so no new allocation after the snapshot above.
@@ -201,7 +202,7 @@ TEST(Construction, RefNeverAllocates) {
     int a = 1, b = 2, c = 3;
     LargePayload payload{};
 
-    long before = g_allocCount;
+    long before = LargePayload::allocCount;
     bool smallOk, largeOk;
     {
         auto smallCallable = [a, b, c] { return a + b + c; };
@@ -214,7 +215,7 @@ TEST(Construction, RefNeverAllocates) {
         smallOk = (smallRef() == 6);
         largeOk = (largeRef() == 1);
     }
-    long delta = g_allocCount - before;
+    long delta = LargePayload::allocCount - before;
 
     EXPECT_TRUE(smallOk);
     EXPECT_TRUE(largeOk);
