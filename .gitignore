@@ -14,6 +14,19 @@ CMakeUserPresets.json
 # Executables
 *.exe
 
+# libFuzzer local run artifacts — the compiled harness binary has no
+# extension on Linux (e.g. `fuzz_vector`), so *.exe above doesn't
+# catch it; and libFuzzer drops crash/leak/oom/timeout reproducers
+# wherever the binary is run from. The two negations keep the actual
+# harness sources under fuzz/ tracked.
+fuzz_*
+!fuzz_*.cpp
+!fuzz_*.h
+crash-*
+leak-*
+oom-*
+timeout-*
+
 # Debug symbols
 *.pdb
 

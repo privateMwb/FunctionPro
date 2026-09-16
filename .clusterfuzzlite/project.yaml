@@ -1,0 +1,12 @@
+# ============================================================
+# .clusterfuzzlite/project.yaml
+# ClusterFuzzLite project config. Enables ASan + UBSan and builds
+# the libFuzzer-based harnesses under fuzz/.
+# ============================================================
+
+language: c++
+sanitizers:
+  - address
+  - undefined
+fuzzing_engines:
+  - libfuzzer

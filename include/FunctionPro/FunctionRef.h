@@ -5,7 +5,7 @@
  *
  * @version         1.0.0
  *
- * @copyright       Copyright (c) 2026 MWB
+ * @copyright       Copyright (c) 2026 privateMwb
  *                  All rights reserved.
  *                  https://github.com/privateMwb/FunctionPro
  *
@@ -69,7 +69,10 @@ template <typename R, typename... Args> class FunctionRef<R(Args...)> {
      * to something other than `FunctionRef` itself and is invocable as
      * `R(Args...)`. Function pointers and raw function references are
      * stored directly rather than through an object address, avoiding an
-     * unnecessary extra indirection on every call.
+     * unnecessary extra indirection on every call. Callable objects are
+     * invoked back through their deduced cv-qualification (not the
+     * decayed type), so a `const` callable is only ever called through a
+     * `const`-qualified pointer.
      */
     template <typename T>
         requires(!std::same_as<std::decay_t<T>, FunctionRef<R(Args...)>>) &&
@@ -96,10 +99,13 @@ template <typename R, typename... Args> class FunctionRef<R(Args...)> {
                 return reinterpret_cast<DecayT>(p.fn)(std::forward<Args>(args)...);
             };
         } else {
-            // T is a callable object — store address through obj
+            // T is a callable object — store address through obj, keeping
+            // T's cv-qualification (not DecayT) so a const callable can
+            // only ever be invoked through a const-qualified pointer.
+            using StoredT = T;
             ptr_.obj = const_cast<void*>(static_cast<const void*>(&callable));
             invoke_ = [](PtrStorage p, Args&&... args) -> R {
-                return (*static_cast<DecayT*>(p.obj))(std::forward<Args>(args)...);
+                return (*static_cast<StoredT*>(p.obj))(std::forward<Args>(args)...);
             };
         }
     }

@@ -1,8 +1,10 @@
 // clang-format off
 #include "support/framework.h"  // printAllExampleSuite(), printExampleSuiteList(), printOneSuite()
-                                // example_registry()
+                                // runSuites(), printUsage(), example_registry(), ExampleSuite
                                 // prettify(), toLower()
 // clang-format on
+
+#include <vector> // std::vector (category-match collection)
 
 int main(int argc, char* argv[]) {
     // No args: run every registered suite.
@@ -13,6 +15,12 @@ int main(int argc, char* argv[]) {
 
     std::string_view requested = argv[1];
 
+    // "-h" / "--help": print usage and exit.
+    if (requested == "-h" || requested == "--help") {
+        printUsage();
+        return 0;
+    }
+
     // "list": print every registered suite, grouped by category, no run.
     if (requested == "list") {
         printExampleSuiteList();
@@ -21,7 +29,7 @@ int main(int argc, char* argv[]) {
 
     // Otherwise: run whichever suite(s) match the requested name, id, or category.
     const std::string requestedLower = toLower(prettify(requested));
-    bool foundCategory = false;
+    std::vector<const ExampleSuite*> categoryMatches;
 
     for (const auto& suite : example_registry()) {
         const std::string nameLower = toLower(suite.name);
@@ -34,15 +42,15 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        // Category match: run every suite in it, keep scanning for more.
-        if (categoryLower == requestedLower) {
-            foundCategory = true;
-            printOneSuite(suite);
-        }
+        // Category match: collect it, keep scanning for more.
+        if (categoryLower == requestedLower)
+            categoryMatches.push_back(&suite);
     }
 
-    if (foundCategory)
+    if (!categoryMatches.empty()) {
+        runSuites(categoryMatches, 1);
         return 0;
+    }
 
     std::cerr << "\nUnknown example suite: " << requested << "\n\n";
     return 1;

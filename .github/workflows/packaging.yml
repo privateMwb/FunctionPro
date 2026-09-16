@@ -24,6 +24,9 @@ on:
       - "conandata.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   # ------------------------------------------------------------
   # conan create builds the package, then automatically builds and
@@ -34,15 +37,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.x"
 
       - name: Install Conan
-        run: pip install conan
+        # requirements.txt is hash-pinned (SHA256, including transitive
+        # deps) via `pip-compile --generate-hashes`. Regenerate it with:
+        #   pip-compile --generate-hashes --output-file=packaging/requirements.txt packaging/requirements.in
+        # whenever the pinned Conan version changes.
+        run: pip install --require-hashes -r packaging/requirements.txt
 
       - name: Detect default profile
         run: conan profile detect --force
@@ -71,7 +78,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Bootstrap vcpkg
         run: |

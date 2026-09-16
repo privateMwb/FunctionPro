@@ -1,11 +1,18 @@
-# FunctionPro
-
 <p align="center">
-  <img src="https://img.shields.io/github/v/release/privateMwb/FunctionPro?style=for-the-badge&logo=github&color=yellow" alt="Version">
-  <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge" alt="License - MIT">
-  <img src="https://img.shields.io/badge/C%2B%2B-23-blue?style=for-the-badge&logo=c%2B%2B" alt="C++ - 23">
+  <img src=".github/assets/banner.svg" alt="FunctionPro" width="100%">
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/privateMwb/FunctionPro?style=for-the-badge&logo=github&color=0F52A0&labelColor=05090F" alt="Version">
+  <img src="https://img.shields.io/badge/License-MIT-1E88E5?style=for-the-badge&labelColor=05090F" alt="License - MIT">
+  <img src="https://img.shields.io/badge/C%2B%2B-23-7FD1FF?style=for-the-badge&logo=c%2B%2B&labelColor=05090F" alt="C++ - 23">
+</p>
+
+<p align="center">
+  <img src=".github/assets/divider.svg" alt="" width="100%">
+</p>
+
+<p align="center"><sub><b>CI / CD</b></sub></p>
 <p align="center">
   <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/build.yml">
     <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/build.yml/badge.svg" alt="Build and Test">
@@ -13,6 +20,16 @@
   <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/benchmark.yml">
     <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/benchmark.yml/badge.svg" alt="Benchmarks">
   </a>
+  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/packaging.yml">
+    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/packaging.yml/badge.svg" alt="Packaging">
+  </a>
+  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/release.yml">
+    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/release.yml/badge.svg" alt="Release">
+  </a>
+</p>
+
+<p align="center"><sub><b>Code Quality &amp; Safety</b></sub></p>
+<p align="center">
   <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/coverage.yml">
     <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/coverage.yml/badge.svg" alt="Coverage">
   </a>
@@ -25,17 +42,29 @@
   <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/clang-format.yml">
     <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/clang-format.yml/badge.svg" alt="Clang Format">
   </a>
-  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/docs.yml">
-    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/docs.yml/badge.svg" alt="Documentation">
+  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/codeql.yml">
+    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/codeql.yml/badge.svg" alt="CodeQL">
   </a>
-  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/release.yml">
-    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/release.yml/badge.svg" alt="Release">
+  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/cflite_pr.yml">
+    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/cflite_pr.yml/badge.svg" alt="Fuzzing">
   </a>
-  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/packaging.yml">
-    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/packaging.yml/badge.svg" alt="Packaging">
+  <a href="https://www.bestpractices.dev/projects/14669">
+    <img src="https://www.bestpractices.dev/projects/14669/badge" alt="OpenSSF Best Practices">
   </a>
 </p>
 
+<p align="center"><sub><b>Documentation</b></sub></p>
+<p align="center">
+  <a href="https://github.com/privateMwb/FunctionPro/actions/workflows/docs.yml">
+    <img src="https://github.com/privateMwb/FunctionPro/actions/workflows/docs.yml/badge.svg" alt="Documentation">
+  </a>
+</p>
+
+<p align="center">
+  <img src=".github/assets/divider.svg" alt="" width="100%">
+</p>
+
+<p align="center"><sub><b>Compiler Support</b></sub></p>
 <p align="center">
   <img src="https://img.shields.io/badge/GCC-support-B46F1B?style=flat&logo=gnu" alt="GCC - support">
   <img src="https://img.shields.io/badge/Clang-support-045891?style=flat&logo=llvm" alt="Clang - support">
@@ -43,11 +72,13 @@
   <img src="https://img.shields.io/badge/AppleClang-support-000000?style=flat&logo=apple" alt="AppleClang - support">
 </p>
 
-FunctionPro is a header-only C++23 library of type-erased callable
-wrappers — `Function`, `MoveOnlyFunction`, and `FunctionRef` — built
-around a shared SBO storage core and a single-pointer vtable dispatch
-model, with copy/move semantics and exception guarantees matching
-their `std::function` family counterparts.
+<p align="center">
+  <img src=".github/assets/divider.svg" alt="" width="100%">
+</p>
+
+<p align="center">FunctionPro is a header-only C++ library of type-erased callable wrappers — <code>Function</code>, <code>MoveOnlyFunction</code>, and <code>FunctionRef</code> — built around a shared SBO storage core and a single-pointer vtable dispatch model, with copy/move semantics and exception guarantees matching their <code>std::function</code> family counterparts.</p>
+
+<br>
 
 ## 📑 Table of Contents
 
@@ -58,10 +89,14 @@ their `std::function` family counterparts.
 - [Project Structure](#project-structure)
 - [Development](#development)
 - [Benchmarks](#benchmarks)
+- [Fuzzing](#fuzzing)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Changelog](#changelog)
+- [Security](#security)
 - [License](#license)
+
+<br>
 
 ## <a id="features"></a>✨ Features
 
@@ -101,10 +136,14 @@ their `std::function` family counterparts.
   inline-stored callables holding a subobject with an internal
   self-pointer.
 
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
 ## <a id="requirements"></a>📋 Requirements
 
-- A C++23-conformant compiler (tested: Clang, GCC, MSVC)
+- A C++23-conformant compiler (tested: GCC, Clang, MSVC, AppleClang)
 - CMake 3.20+
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
 
 ## <a id="installation"></a>📦 Installation
 
@@ -133,14 +172,12 @@ target_link_libraries(your_target PRIVATE FunctionPro::FunctionPro)
 > `packaging/vcpkg/ports/functionpro/`), but not yet published to
 > the public registries. This section will be updated once they are.
 
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
 ## <a id="quick-start"></a>🚀 Quick Start
 
 ```cpp
 #include <FunctionPro/Function.h>
-#include <FunctionPro/MoveOnlyFunction.h>
-#include <FunctionPro/FunctionRef.h>
-
-#include <memory>
 
 using namespace FunctionPro;
 
@@ -148,24 +185,51 @@ int main() {
     // Function: copyable, SBO-backed, drop-in std::function replacement
     Function<int(int)> add = [](int x) { return x + 1; };
     int result = add(41); // 42
-
-    // MoveOnlyFunction: wraps move-only captures Function can't
-    auto owned = std::make_unique<int>(10);
-    MoveOnlyFunction<int()> readOwned = [p = std::move(owned)] { return *p; };
-    int value = readOwned(); // 10
-
-    // FunctionRef: non-owning view — cheapest option when the
-    // callable's lifetime is already guaranteed by the caller
-    auto callable = [](int x) { return x * 2; };
-    FunctionRef<int(int)> ref(callable);
-    int doubled = ref(21); // 42
-
-    // Invoking an empty Function/MoveOnlyFunction throws, like std::function
-    Function<void()> empty;
-    if (!empty)
-        /* handle emptiness, or call it and catch std::bad_function_call */;
 }
 ```
+
+`MoveOnlyFunction` wraps captures `Function` can't — anything move-only,
+like a `std::unique_ptr`:
+
+```cpp
+#include <FunctionPro/MoveOnlyFunction.h>
+
+#include <memory>
+
+auto owned = std::make_unique<int>(10);
+FunctionPro::MoveOnlyFunction<int()> readOwned = [p = std::move(owned)] { return *p; };
+int value = readOwned(); // 10
+```
+
+`FunctionRef` is a non-owning view — the cheapest option when the
+callable's lifetime is already guaranteed by the caller:
+
+```cpp
+#include <FunctionPro/FunctionRef.h>
+
+auto callable = [](int x) { return x * 2; };
+FunctionPro::FunctionRef<int(int)> ref(callable);
+int doubled = ref(21); // 42
+```
+
+`reset()`, `swap()`, and empty-call handling, the same across all three types:
+
+```cpp
+FunctionPro::Function<void()> fn;
+
+if (!fn) {
+    // handle emptiness, or call it and catch std::bad_function_call
+}
+
+fn = [] { /* ... */ };
+fn.reset(); // back to empty
+
+FunctionPro::Function<int()> a = [] { return 1; };
+FunctionPro::Function<int()> b = [] { return 2; };
+a.swap(b); // a() == 2, b() == 1
+```
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
 
 ## <a id="project-structure"></a>🗂️ Project Structure
 
@@ -189,40 +253,58 @@ FunctionPro/
 │   ├── support/
 │   ├── suite/
 │   ├── test_main.cpp
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   └── README.md
 │
 ├── benchmarks/
 │   ├── support/
 │   ├── suite/
 │   ├── baselines/
 │   ├── bench_main.cpp
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   └── README.md
 │
 ├── examples/
 │   ├── support/
 │   ├── suite/
 │   ├── example_main.cpp
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   └── README.md
 │
 ├── regression/
 │   ├── support/
+│   ├── results/
 │   ├── regression_main.cpp
-│   └── CMakeLists.txt
+│   ├── CMakeLists.txt
+│   └── README.md
+│
+├── fuzz/
+│   ├── fuzz_function.cpp
+│   ├── fuzz_move_only_function.cpp
+│   └── fuzz_function_ref.cpp
+│
+├── .clusterfuzzlite/
+│   ├── Dockerfile
+│   ├── build.sh
+│   └── project.yaml
 │
 ├── packaging/
+│   ├── README.md
+│   ├── requirements.in
+│   ├── requirements.txt
 │   ├── recipes/
-│   │   └── functionpro/
 │   ├── vcpkg/
-│   │   └── ports/
-│   │       └── functionpro/
 │   └── vcpkg-smoke-test/
 │
 ├── scripts/
 │   └── update_package_files.py
 │
 ├── .github/
+│   ├── assets/
 │   ├── releases/
-│   └── workflows/
+│   ├── workflows/
+│   ├── CODEOWNERS
+│   └── dependabot.yml
 │
 ├── cmake/
 │   └── FunctionProConfig.cmake.in
@@ -231,11 +313,19 @@ FunctionPro/
 │   ├── Doxyfile
 │   └── README.md
 │
+├── .clang-format
+├── .clang-tidy
 ├── .gitignore
 ├── CMakeLists.txt
 ├── README.md
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+├── SECURITY.md
+├── FUZZING.md
 └── LICENSE
 ```
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
 
 ## <a id="development"></a>🛠️ Development
 
@@ -269,6 +359,8 @@ auto-names its output (`regression_v1.2.0_vs_current.md`/`.json`, etc.).
 
 See [packaging/README.md](packaging/README.md) for notes on verifying the vcpkg
 port and Conan recipe locally.
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
 
 ## <a id="benchmarks"></a>📊 Benchmarks
 
@@ -338,25 +430,77 @@ temporary before touching `*this`, so a throwing copy constructor
 leaves the destination untouched — the strong exception guarantee,
 paid for on every copy-assign, not just the ones that throw.
 
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
+## <a id="fuzzing"></a>🐛 Fuzzing
+
+All three types are continuously fuzzed via
+[ClusterFuzzLite](https://google.github.io/clusterfuzzlite/), under
+AddressSanitizer and UndefinedBehaviorSanitizer. A short pass runs on
+every PR touching `Function`, `MoveOnlyFunction`, `FunctionRef`, or
+the shared `Detail/` storage layer; a longer pass runs nightly.
+
+`fuzz_function` differential-tests `Function<int(int)>` against a
+`std::function<int(int)>` reference wrapping the same callable
+objects, covering SBO/heap transitions, cross-slot copy/move/swap,
+self-assign/self-swap safety, and the empty-call
+`std::bad_function_call` contract. `fuzz_move_only_function` covers
+the same ground for `MoveOnlyFunction` against harness-tracked ground
+truth, since `std::move_only_function` needs C++23 and isn't used as
+a reference here. `fuzz_function_ref` rebinds a `FunctionRef` across
+mutable, `const`, and free-function referents, reading each real
+object's own state back after the call to confirm invocation reached
+the correct target. Exception-injection during `Function`'s copy path
+and `FunctionRef` referent-lifetime violations aren't covered by
+fuzzing — see [FUZZING.md](FUZZING.md) for full scope, running
+locally, and reproducing a failing input.
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
 ## <a id="documentation"></a>📖 Documentation
 
 Full API reference, generated with Doxygen from `docs/Doxyfile`:
 
 **https://privateMwb.github.io/FunctionPro/**
 
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
 ## <a id="contributing"></a>🤝 Contributing
 
-Issues and pull requests are welcome. Before submitting a PR:
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+for the full process, coding standard reference, and what CI checks on
+every PR. Short version, before submitting:
 
 - Run the test suite (`ctest --test-dir build`)
 - If you're changing a hot path, run `./build/regression` and mention
   the results in your PR description
 
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
 ## <a id="changelog"></a>📝 Changelog
 
-See the [Releases](https://github.com/privateMwb/FunctionPro/releases)
-page for version history and release notes.
+See [CHANGELOG.md](CHANGELOG.md) for a curated, per-release summary of
+changes, or the [Releases](https://github.com/privateMwb/FunctionPro/releases)
+page for the full release notes.
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
+
+## <a id="security"></a>🔒 Security
+
+See [SECURITY.md](SECURITY.md) for the supported versions, how to report
+a vulnerability (including privately, via GitHub Security Advisories),
+and the disclosure timeline.
+
+<div align="right"><a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a></div>
 
 ## <a id="license"></a>📄 License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+<p align="center">
+  <sub>Built with C++23</sub>
+</p>
+
+<p align="center">
+  <a href="#-table-of-contents"><img src=".github/assets/back-to-top.svg" alt="Back to top" height="28"></a>
+</p>

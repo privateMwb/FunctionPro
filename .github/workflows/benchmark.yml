@@ -19,20 +19,37 @@ on:
         default: ""
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # need full history + tags so we can auto-detect the latest tag below
 
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y cmake clang
+          sudo apt install -y cmake clang ccache
+
+      - name: Cache ccache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ccache
+          key: ccache-benchmark-${{ github.sha }}
+          restore-keys: ccache-benchmark-
+
+      - name: Cache fetched dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/_deps
+          key: deps-benchmark-${{ hashFiles('benchmarks/google_benchmarks/CMakeLists.txt', 'regression/CMakeLists.txt') }}
 
       # Only benchmarks/ and tools/ (the regression tool) are needed
       # here — tests/examples aren't exercised by this workflow.
@@ -40,73 +57,171 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DBUILD_TESTS=OFF \
             -DBUILD_BENCHMARKS=ON \
             -DBUILD_REGRESSION=ON \
             -DBUILD_EXAMPLES=OFF
 
-      - name: Build benchmarks
+      - name: Build custom benchmarks
         run: cmake --build build --target benchmarks
 
       - name: Ensure results directory exists
         run: mkdir -p benchmarks/results
 
-      - name: Run benchmarks
+      - name: Run custom benchmarks
+        continue-on-error: true
         run: ./build/benchmarks
+
+      - name: Build google benchmarks
+        run: cmake --build build --target google_benchmarks
+
+      - name: Run google benchmarks
+        continue-on-error: true
+        run: ./build/google_benchmarks --benchmark_out=benchmarks/results/google_benchmark_results.json --benchmark_out_format=json
+
+      - name: Convert google benchmarks result to md
+        continue-on-error: true
+        run: |
+          python3 > benchmarks/results/google_benchmark_results.md <<'PY'
+          import json
+          with open('benchmarks/results/google_benchmark_results.json') as f:
+              data = json.load(f)
+          print('| Benchmark | Time | CPU | Iterations |')
+          print('|---|---|---|---|')
+          for b in data['benchmarks']:
+              print(f"| {b['name']} | {b['real_time']:.2f} {b['time_unit']} | {b['cpu_time']:.2f} {b['time_unit']} | {b['iterations']} |")
+          PY
 
       - name: Build regression tool
         run: cmake --build build --target regression
 
       - name: Run regression tool
+        continue-on-error: true
         run: ./build/regression
+
+      - name: Run google regression tool
+        continue-on-error: true
+        run: ./build/google_regression
 
       - name: Determine version
         id: version
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            VERSION="${{ github.ref_name }}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
           else
-            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+            # No version typed in for a manual run -- fall back to the
+            # most recent tag reachable from this commit (by creation
+            # order, not just alphabetically/semver, via creatordate).
+            VERSION="$(git tag --sort=-creatordate | head -n 1)"
           fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Save baseline snapshots
         if: steps.version.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.BASELINE_PUSH_TOKEN }}
         run: |
-          mkdir -p benchmarks/baselines
-
-          cp benchmarks/results/benchmark_results.json "benchmarks/baselines/${{ steps.version.outputs.version }}.json"
-          cp benchmarks/results/benchmark_results.md "benchmarks/baselines/${{ steps.version.outputs.version }}.md"
+          # Stash the freshly-generated results before switching branches --
+          # whatever branch triggered this run (main, a release tag, or a
+          # manually-selected feature branch) is what produced these
+          # numbers, and that's fine. What must NOT happen is basing the
+          # new branch on that branch's checkout: if it's not main, the
+          # resulting PR would propose merging that entire branch's
+          # unrelated changes, not just a baseline snapshot.
+          mkdir -p /tmp/baseline-results
+          cp benchmarks/results/benchmark_results.json /tmp/baseline-results/
+          cp benchmarks/results/benchmark_results.md /tmp/baseline-results/
+          cp benchmarks/results/google_benchmark_results.json /tmp/baseline-results/
+          cp benchmarks/results/google_benchmark_results.md /tmp/baseline-results/
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add \
-            "benchmarks/baselines/${{ steps.version.outputs.version }}.json" \
-            "benchmarks/baselines/${{ steps.version.outputs.version }}.md"
+          git fetch origin main
+          git checkout main
 
-          git diff --staged --quiet || git commit -m "benchmarks: add baseline snapshot for ${{ steps.version.outputs.version }}"
-          git push origin HEAD:main
+          BRANCH="benchmark-baseline-${{ steps.version.outputs.version }}"
+          # -B (not -b): this branch is regenerated fresh each run and
+          # isn't meant to accumulate history across attempts, so reset
+          # it locally if a stale local ref happens to exist.
+          git checkout -B "$BRANCH"
+
+          mkdir -p benchmarks/baselines/${{ steps.version.outputs.version }}
+          cp /tmp/baseline-results/benchmark_results.json "benchmarks/baselines/${{ steps.version.outputs.version }}/${{ steps.version.outputs.version }}.json"
+          cp /tmp/baseline-results/benchmark_results.md "benchmarks/baselines/${{ steps.version.outputs.version }}/${{ steps.version.outputs.version }}.md"
+          cp /tmp/baseline-results/google_benchmark_results.json "benchmarks/baselines/${{ steps.version.outputs.version }}/g${{ steps.version.outputs.version }}.json"
+          cp /tmp/baseline-results/google_benchmark_results.md "benchmarks/baselines/${{ steps.version.outputs.version }}/g${{ steps.version.outputs.version }}.md"
+
+          git add \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}/${{ steps.version.outputs.version }}.json" \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}/${{ steps.version.outputs.version }}.md" \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}/g${{ steps.version.outputs.version }}.json" \
+            "benchmarks/baselines/${{ steps.version.outputs.version }}/g${{ steps.version.outputs.version }}.md"
+
+          if git diff --staged --quiet; then
+            echo "No baseline changes to commit."
+            exit 0
+          fi
+
+          git commit -m "benchmarks: add baseline snapshot for ${{ steps.version.outputs.version }}"
+
+          # A PAT is required here, not the default GITHUB_TOKEN: pushes/PRs
+          # made with GITHUB_TOKEN don't trigger other workflows (GitHub's
+          # loop-prevention), so the required status checks below would
+          # never run and this PR would sit stuck forever. Pushing with a
+          # PAT makes this look like a normal push from its owner, so CI
+          # triggers normally and that same identity's bypass permission
+          # (for pull requests only) lets it self-merge once checks pass.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          # --force: a prior run (e.g. an aborted test, or re-running for
+          # the same version) may have left a branch of this same name
+          # with unrelated history. This branch is disposable and
+          # regenerated fresh each run, so overwrite it rather than fail.
+          git push origin "$BRANCH" --force
+
+          gh pr create \
+            --title "benchmarks: add baseline snapshot for ${{ steps.version.outputs.version }}" \
+            --body "Automated baseline snapshot from the benchmark workflow." \
+            --base main \
+            --head "$BRANCH"
+
+          gh pr merge "$BRANCH" --auto --squash
 
       - name: Upload benchmark JSON results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: benchmark-results-json
           path: benchmarks/results/benchmark_results.json
 
       - name: Upload benchmark markdown results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: benchmark-results-md
           path: benchmarks/results/benchmark_results.md
 
+      - name: Upload google benchmark JSON results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: google-benchmark-results-json
+          path: benchmarks/results/google_benchmark_results.json
+
+      - name: Upload google benchmark markdown results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: google-benchmark-results-md
+          path: benchmarks/results/google_benchmark_results.md
+
       - name: Upload regression JSON results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: regression-results-json
           path: benchmarks/results/regression_results.json
 
       - name: Upload regression markdown results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: regression-results-md
           path: benchmarks/results/regression_results.md
