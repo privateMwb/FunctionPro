@@ -177,10 +177,13 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
             a.ref = std::move(b.ref);
             // FunctionPro guarantees the moved-from side is left
             // empty; std::function only guarantees a valid-but-
-            // unspecified state, so only the FunctionPro side of this
-            // is checked.
+            // unspecified state. Force b.ref into the same known-empty
+            // state so later checkPair(b, ...) calls compare against a
+            // deterministic reference instead of an implementation-
+            // defined one.
             if (static_cast<bool>(b.fn))
                 std::abort();
+            b.ref = nullptr;
             break;
         }
         case 6: { // swap(a, b)
