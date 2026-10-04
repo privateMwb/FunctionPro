@@ -49,6 +49,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false # the push below must use the PAT, not GITHUB_TOKEN
 
       - name: Determine source branch
         id: branch
@@ -76,7 +77,7 @@ jobs:
 
       - name: Download source archive
         run: |
-          curl -L \
+          curl -fL \
             -o source.tar.gz \
             https://github.com/${{ env.REPOSITORY }}/archive/refs/tags/${{ steps.tag.outputs.tag }}.tar.gz
 
@@ -116,7 +117,9 @@ jobs:
           fi
 
           BRANCH="update-package-recipes-${{ steps.tag.outputs.tag }}"
-          git checkout -b "$BRANCH"
+          # -B: disposable branch, regenerated fresh on every run (a
+          # re-run for the same tag must not fail on a stale ref).
+          git checkout -B "$BRANCH"
           git commit -m "Update package recipes for ${{ steps.tag.outputs.tag }}"
 
           # Same reasoning as benchmark.yml: GITHUB_TOKEN pushes/PRs don't
@@ -127,12 +130,15 @@ jobs:
           # existing bypass permission (for pull requests only) lets it
           # self-merge once checks pass.
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ env.REPOSITORY }}.git"
-          git push origin "$BRANCH"
+          git push origin "$BRANCH" --force
 
-          gh pr create \
-            --title "Update package recipes for ${{ steps.tag.outputs.tag }}" \
-            --body "Automated recipe update from the update-package-recipes workflow." \
-            --base "${{ steps.branch.outputs.branch }}" \
-            --head "$BRANCH"
+          # A PR from a previous run for this tag may still be open.
+          if [ -z "$(gh pr list --head "$BRANCH" --base "${{ steps.branch.outputs.branch }}" --state open --json number --jq '.[0].number')" ]; then
+            gh pr create \
+              --title "Update package recipes for ${{ steps.tag.outputs.tag }}" \
+              --body "Automated recipe update from the update-package-recipes workflow." \
+              --base "${{ steps.branch.outputs.branch }}" \
+              --head "$BRANCH"
+          fi
 
           gh pr merge "$BRANCH" --auto --squash
