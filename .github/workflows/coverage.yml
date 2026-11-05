@@ -45,22 +45,27 @@ jobs:
       - name: Run tests
         run: ctest --test-dir build --output-on-failure
 
+      # GCC 15's gcov reports mismatched end lines for GoogleTest TEST()
+      # bodies, so lcov 2.x flags them as "inconsistent". The doubled
+      # value downgrades the error to a warning, then suppresses it.
       - name: Generate coverage report
         run: |
           lcov --capture \
             --directory build \
             --output-file coverage.info \
-            --ignore-errors negative,gcov,mismatch
+            --exclude '/usr/*' \
+            --ignore-errors negative,gcov,mismatch,inconsistent,inconsistent
 
           lcov --remove coverage.info \
-            '/usr/*' \
             '*/tests/*' \
-            --output-file coverage.filtered.info
+            --output-file coverage.filtered.info \
+            --ignore-errors unused,inconsistent,inconsistent
 
       - name: Generate HTML report
         run: |
           genhtml coverage.filtered.info \
-            --output-directory coverage-html
+            --output-directory coverage-html \
+            --ignore-errors inconsistent,inconsistent
 
       - name: Upload HTML report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
